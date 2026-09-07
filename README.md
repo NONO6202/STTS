@@ -4,6 +4,7 @@ Discord 실시간 자막과 텍스트 음성 전송을 위한 데스크톱 앱.
 
 [![Release](https://img.shields.io/github/v/release/NONO6202/STTS)](https://github.com/NONO6202/STTS/releases/latest)
 [![Windows build](https://github.com/NONO6202/STTS/actions/workflows/windows.yml/badge.svg)](https://github.com/NONO6202/STTS/actions/workflows/windows.yml)
+[![macOS build](https://github.com/NONO6202/STTS/actions/workflows/macos.yml/badge.svg)](https://github.com/NONO6202/STTS/actions/workflows/macos.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [다운로드](https://github.com/NONO6202/STTS/releases/latest) · [Windows 사용법](Windows/README.md) · [소스 빌드](docs/build.md)
@@ -23,9 +24,11 @@ Discord 실시간 자막과 텍스트 음성 전송을 위한 데스크톱 앱.
 | 운영체제 | 요구 사항 | 설치 |
 | --- | --- | --- |
 | Windows | Windows 11, x64 | [0.1.0 EXE](https://github.com/NONO6202/STTS/releases/download/v0.1.0/STTS-0.1.0-setup-x64.exe) |
-| macOS | macOS 26+, Apple Silicon | [소스 빌드](docs/build.md#macos) |
+| macOS | macOS 26+, Apple Silicon | [0.1.0 DMG](https://github.com/NONO6202/STTS/releases/download/v0.1.0/STTS-0.1.0-arm64.dmg) |
 
-Windows 설치 파일에 실행 환경과 VB-CABLE 드라이버가 포함됩니다. 모델은 첫 사용 시 자동으로 다운로드합니다. Mac 설치 파일은 빌드 완료 후 릴리스에 추가됩니다.
+Windows 설치 파일에 실행 환경과 VB-CABLE 드라이버가 포함됩니다. 모델은 첫 사용 시 자동으로 다운로드합니다.
+
+macOS 파일은 Apple 공증 전 배포본이며, 업데이트는 DMG로 수동 설치합니다.
 
 ## 시작하기
 
