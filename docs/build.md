@@ -30,3 +30,12 @@ Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_tts_
 ```
 
 [Windows 검증 범위](verification.md)
+
+Mac에서 화면·가상 마이크 통합 검사를 포함한 전체 테스트:
+
+```sh
+swift test -c release --disable-xctest --filter SegmentationTests -j 3
+.venv/bin/python -m unittest discover -s Tests -p 'test_mlx_protocol.py'
+```
+
+GitHub macOS 빌드에서는 화면 클릭과 Core Audio 장치 생성 검사 2개를 제외합니다. 해당 검사는 화면과 오디오 장치가 있는 Mac에서 실행해야 합니다.

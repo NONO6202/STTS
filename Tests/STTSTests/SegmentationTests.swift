@@ -138,12 +138,12 @@ import AppKit
     @Test func localAutoDoesNotReplaceDefaultGTTS() {
         for level in ResourceLevel.allCases { #expect(TTSModel.gtts.resolved(level) == .gtts) }
         #expect(TTSModel.localAuto.resolved(.minimum) == .gtts)
-        #expect(TTSModel.localAuto.resolved(.low) == .chatterV3)
+        #expect(TTSModel.localAuto.resolved(.low) == .supertonic3)
         #expect(TTSModel.localAuto.resolved(.medium) == .qwen06)
         #expect(TTSModel.localAuto.resolved(.high) == .qwen17)
-        #expect(TTSModel.localAuto.resolved(.maximum) == .vox)
+        #expect(TTSModel.localAuto.resolved(.maximum) == .qwen17)
         #expect(STTModel.automatic.resolved(.medium) == .turbo)
-        #expect(STTModel.automatic.resolved(.low) == .nemotron)
+        #expect(STTModel.automatic.resolved(.low) == .small)
     }
     @Test @MainActor func virtualMicrophoneChecksMuteAndOwnProcessBeforePlayback() throws {
         let playback = AudioPlayback(); playback.prepareOutput()
