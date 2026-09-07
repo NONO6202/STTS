@@ -1,0 +1,52 @@
+name: Windows
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Windows/**'
+      - 'Tests/test_windows*.py'
+      - 'Tests/test_tts_phrases.py'
+      - '.github/workflows/windows.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build app and bundled virtual microphone installer
+        shell: pwsh
+        run: ./Windows/build.ps1
+      - name: Run regression tests
+        shell: pwsh
+        run: |
+          Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_windows*.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_tts_phrases.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify packaged app, driver, speech and capture
+        shell: pwsh
+        run: ./Windows/verify.ps1 -InstallOnDisposableRunner
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: STTS-0.1.0-windows-x64
+          path: dist/STTS-0.1.0-setup-x64.exe
+          compression-level: 0
+          retention-days: 7
+      - name: Upload verification summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation
+          path: |
+            Windows/build/validation-*/data/flow.json
+            Windows/build/validation-*/data/verification.log
+            Windows/build/validation-*/data/audio-diagnostic.json
+            Windows/build/validation-*/data/gui-smoke.json
+            Windows/build/validation-*/data/ui/*.png
+          retention-days: 7

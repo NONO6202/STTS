@@ -1,0 +1,25 @@
+STTS includes VB-CABLE by VB-Audio Software.
+Origin: https://www.vb-cable.com/
+VB-CABLE is donationware. If you find it useful, please donate/pay for your license:
+https://vb-audio.com/Services/licensing.htm
+
+The original VB-CABLE Driver Pack 45 is included without modification.
+The vendor's public "VB-CABLE Distribution with other product" grant permits
+bundling with applications when VB-Audio's identity and donationware model
+remain visible and applicable. VB-CABLE A+B and C+D are not included.
+Professional deployments in companies, institutions, or organizations where
+users cannot pay for their software require VB-Audio volume licensing.
+VB-CABLE is not owned by STTS and remains subject to its original license.
+
+Installing the virtual microphone requires administrator permission and a PC
+restart. Existing VB-CABLE installations are reused. In Discord, select
+"CABLE Output (VB-Audio Virtual Cable)" as the input device. Select your
+headphones/speakers as Discord's output device. STTS sends generated speech
+to "CABLE Input"; it never routes generated speech to physical speakers.
+
+The STTS application/installer is an unsigned experimental release.
+The bundled Windows 10/11 VB-CABLE driver is vendor-signed. STTS does not
+change Secure Boot, driver-signing policy, or trusted certificate stores.
+Uninstalling STTS preserves your saved voices/models and the shared VB-CABLE
+driver. Remove saved data from %LOCALAPPDATA%\STTS if desired; remove VB-CABLE
+with VB-Audio's own setup program before deleting its files.

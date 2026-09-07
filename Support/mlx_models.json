@@ -1,0 +1,955 @@
+{
+  "base": {
+    "repo": "mlx-community/whisper-base-asr-8bit",
+    "revision": "9df05059d440b113010e42f0795663dd6d5628fd",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "added_tokens.json",
+        "size": 34604,
+        "sha256": null,
+        "git_sha1": "e3d256c988462aa153dcabe2aa38b8e9b436c06f"
+      },
+      {
+        "path": "config.json",
+        "size": 2645,
+        "sha256": null,
+        "git_sha1": "5f6d312e9974ed48bde4ec7f38ad17fa24852b2a"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 3807,
+        "sha256": null,
+        "git_sha1": "38eda87a0b22fdb85af5dfa14cf065147337137a"
+      },
+      {
+        "path": "merges.txt",
+        "size": 493869,
+        "sha256": null,
+        "git_sha1": "6038932a2a1f09a66991b1c2adae0d14066fa29e"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 77513559,
+        "sha256": "090dc01401e0447304ab1604233cd444a0431bd2e30f3f78675111c2495a50a0",
+        "git_sha1": "da00b183f35dc8786169aa952ab1dd098520418f"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 28692,
+        "sha256": null,
+        "git_sha1": "b28bf110e913400ce79893a8b16bba703bd6a57f"
+      },
+      {
+        "path": "normalizer.json",
+        "size": 52666,
+        "sha256": null,
+        "git_sha1": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 184990,
+        "sha256": null,
+        "git_sha1": "c2048dfa9fd94a052e62e908d2c4dfb18534b4d2"
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 2194,
+        "sha256": null,
+        "git_sha1": "bf69932dca4b3719b59fdd8f6cc1978109509f6c"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2480466,
+        "sha256": null,
+        "git_sha1": "1e95340ff836fad1b5932e800fb7b8c5e6d78a74"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 282683,
+        "sha256": null,
+        "git_sha1": "d13b786c04765fb1a06492b53587752cd67665ea"
+      },
+      {
+        "path": "vocab.json",
+        "size": 835550,
+        "sha256": null,
+        "git_sha1": "d7016e21da8776c8a9d577d0f559600f09a240eb"
+      }
+    ]
+  },
+  "small": {
+    "repo": "mlx-community/whisper-small-asr-8bit",
+    "revision": "2e0a758315ff95826b7400870b437fa633d4b760",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "added_tokens.json",
+        "size": 34604,
+        "sha256": null,
+        "git_sha1": "e3d256c988462aa153dcabe2aa38b8e9b436c06f"
+      },
+      {
+        "path": "config.json",
+        "size": 2620,
+        "sha256": null,
+        "git_sha1": "dd0fe82258bb4be84e808bb4625499103f1a1763"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 3868,
+        "sha256": null,
+        "git_sha1": "d3823179a367fa912e3b911b3d2e71ab2a028290"
+      },
+      {
+        "path": "merges.txt",
+        "size": 493869,
+        "sha256": null,
+        "git_sha1": "6038932a2a1f09a66991b1c2adae0d14066fa29e"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 258118176,
+        "sha256": "968ec676b86a5369a4c25514b60f8dd12257f9db799dd1ded9ab42fee9012714",
+        "git_sha1": "d1f2a9774c06483b6d76e7a0282bc72e64378e68"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 56742,
+        "sha256": null,
+        "git_sha1": "5b679e02d13e0f1c2bfb19d34f488f33748be9da"
+      },
+      {
+        "path": "normalizer.json",
+        "size": 52666,
+        "sha256": null,
+        "git_sha1": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 184990,
+        "sha256": null,
+        "git_sha1": "c2048dfa9fd94a052e62e908d2c4dfb18534b4d2"
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 2194,
+        "sha256": null,
+        "git_sha1": "bf69932dca4b3719b59fdd8f6cc1978109509f6c"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2480466,
+        "sha256": null,
+        "git_sha1": "1e95340ff836fad1b5932e800fb7b8c5e6d78a74"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 282683,
+        "sha256": null,
+        "git_sha1": "d13b786c04765fb1a06492b53587752cd67665ea"
+      },
+      {
+        "path": "vocab.json",
+        "size": 835550,
+        "sha256": null,
+        "git_sha1": "d7016e21da8776c8a9d577d0f559600f09a240eb"
+      }
+    ]
+  },
+  "turbo": {
+    "repo": "mlx-community/whisper-large-v3-turbo-asr-8bit",
+    "revision": "f0fca477e0a885ef4a61088d6cbbc8fc25e53268",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "added_tokens.json",
+        "size": 34648,
+        "sha256": null,
+        "git_sha1": "1b33526d33aaa60d79f78ae8651dae50b730185a"
+      },
+      {
+        "path": "config.json",
+        "size": 1506,
+        "sha256": null,
+        "git_sha1": "6288a0c880f07ccd5b94153e6f725f058bbb44f0"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 3772,
+        "sha256": null,
+        "git_sha1": "cbe752958dc3e4671b0e0220aa1c545423a6d5f5"
+      },
+      {
+        "path": "merges.txt",
+        "size": 493869,
+        "sha256": null,
+        "git_sha1": "6038932a2a1f09a66991b1c2adae0d14066fa29e"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 863658987,
+        "sha256": "9564a6a5d66637e9207234f6c17ea583162c4edc35fd44a087e37768bf5ffc5b",
+        "git_sha1": "fdfb176a590fcbea15a4045a662a3cdd9e7014d5"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 68118,
+        "sha256": null,
+        "git_sha1": "18fb5b6201ed41e38c7d405329134799b88391c7"
+      },
+      {
+        "path": "normalizer.json",
+        "size": 52666,
+        "sha256": null,
+        "git_sha1": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 340,
+        "sha256": null,
+        "git_sha1": "931c77a740890c46365c7ae0c9d350ba3cca908f"
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 2186,
+        "sha256": null,
+        "git_sha1": "312bc106291bb51bf2cc1648df070bef963a0639"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2710337,
+        "sha256": null,
+        "git_sha1": "17456db595adc78a973f97d69d8cb50bc87c0b1c"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 282843,
+        "sha256": null,
+        "git_sha1": "06ffdc8308eae6bb7bd1fdd81e94b0a881a539ab"
+      },
+      {
+        "path": "vocab.json",
+        "size": 1036558,
+        "sha256": null,
+        "git_sha1": "0f3456460629e21d559c6daa23ab6ce3644e8271"
+      }
+    ]
+  },
+  "qwen06": {
+    "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+    "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+    "kind": "tts",
+    "bits": 16,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 4494,
+        "sha256": null,
+        "git_sha1": "4e923f500f5c3eeb78d44072e7049b28817c2e04"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1829344272,
+        "sha256": "180b3b10eb1c9f1b4db7806d5475bae3071c0243c299d49926bab1da3b6946f6",
+        "git_sha1": "401a365c4572f09f44d48bb336fdbf94cd1e3ad2"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  },
+  "qwen17": {
+    "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+    "kind": "tts",
+    "bits": 16,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 4494,
+        "sha256": null,
+        "git_sha1": "81b57e8e790c07e8fa7f82d8bdfd7574d485c396"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 3857413744,
+        "sha256": "38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c",
+        "git_sha1": "ddd8a08fb25fddc128a33dd3f7352c778acce927"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  },
+  "asr06": {
+    "repo": "mlx-community/Qwen3-ASR-0.6B-8bit",
+    "revision": "89e96d92ba34aca20b3e29fb10cc284097d1219f",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "chat_template.json",
+        "size": 1161,
+        "sha256": null,
+        "git_sha1": "c44736493efd71ec96218cc626904698cdb13235"
+      },
+      {
+        "path": "config.json",
+        "size": 7187,
+        "sha256": null,
+        "git_sha1": "845f0d3848c5240a7eee9e1676cbe241c1b92585"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 142,
+        "sha256": null,
+        "git_sha1": "7382a4d347c0a865b76bb1b8277f66a5ac312854"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671853,
+        "sha256": null,
+        "git_sha1": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1006229426,
+        "sha256": "b5bfe4abc1b4c6e58b633096682ec2b6297298add1527119936107d211adf0e8",
+        "git_sha1": "dfb3c5f74da1472c54d8285aa127d1d2cd4948c2"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 71815,
+        "sha256": null,
+        "git_sha1": "19ddb6277777ec48662d9942f1191d8795308bfd"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 330,
+        "sha256": null,
+        "git_sha1": "8f7f07346466d5d494ec0d4969d1c3d0190eed72"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 12487,
+        "sha256": null,
+        "git_sha1": "b93109843922a40c6654c5449d3bf95372267c66"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  },
+  "asr17": {
+    "repo": "mlx-community/Qwen3-ASR-1.7B-8bit",
+    "revision": "a8379a2e2f9e313c9292cdf1af4055ab56d50d55",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "chat_template.json",
+        "size": 1161,
+        "sha256": null,
+        "git_sha1": "c44736493efd71ec96218cc626904698cdb13235"
+      },
+      {
+        "path": "config.json",
+        "size": 7188,
+        "sha256": null,
+        "git_sha1": "888cc7fae19ea9ede543b1ae82e9c78aa06104ca"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 142,
+        "sha256": null,
+        "git_sha1": "7382a4d347c0a865b76bb1b8277f66a5ac312854"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671853,
+        "sha256": null,
+        "git_sha1": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 2463307541,
+        "sha256": "bf304b009cc7eca79283056f787b44c952d24ac22cec787b39732bba3c23c13c",
+        "git_sha1": "de177bf40049eee64602f9128e9daf09cf3d6ff2"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 78968,
+        "sha256": null,
+        "git_sha1": "f0191caac2794d5b6fba0ab3eeb70f8eff90319e"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 330,
+        "sha256": null,
+        "git_sha1": "8f7f07346466d5d494ec0d4969d1c3d0190eed72"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 12487,
+        "sha256": null,
+        "git_sha1": "b93109843922a40c6654c5449d3bf95372267c66"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  },
+  "nemotron": {
+    "repo": "mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit",
+    "revision": "7279359e4481b5e9e185a318bd618e429c6d86cd",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "config.json",
+        "size": 159605,
+        "sha256": null,
+        "git_sha1": "3acd1f4328b1e0207b61b62f33252f7192f98923"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 755598923,
+        "sha256": "a64a4da048e7d28dde4cd4ff61ce59308a63314bb5563e73e06c24aae50ea941",
+        "git_sha1": "91b2dd1e5d3993dd10c65ec2e9ed293e7a17274a"
+      },
+      {
+        "path": "tokenizer.model",
+        "size": 406554,
+        "sha256": "ce3895e40806f02a26c3a225161b96ef682d6c0054bae32a245dec4258d7d291",
+        "git_sha1": "e10ce239b14c26a24ceda9dd48ad0e32eaca330a"
+      },
+      {
+        "path": "vocab.txt",
+        "size": 78294,
+        "sha256": null,
+        "git_sha1": "1a57cbb1f31251413547ebb48441a6d186cd7a59"
+      }
+    ]
+  },
+  "vox": {
+    "repo": "mlx-community/VoxCPM2-8bit",
+    "revision": "d52725898a0675703f7f9ddc5a4d1a3cdbb99032",
+    "kind": "tts",
+    "files": [
+      {
+        "path": "config.json",
+        "size": 5332,
+        "sha256": null,
+        "git_sha1": "2597aa6bb87468353e1acfa88c9e3d26e792ba07"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 3221772935,
+        "sha256": "c07c59aca742fe8f53384a3da4d8a3b3fd98ddc77066dd4bd35b51e08c34a72f",
+        "git_sha1": "ff2090a19cc56f82c3ad4f933f1d915abdfaace0"
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 1632,
+        "sha256": null,
+        "git_sha1": "8619dda6f3eb6d60d0a1bb274820054e46f41699"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 3676772,
+        "sha256": null,
+        "git_sha1": "41a5c2a8dba4058dd1ad73fb898abf5e4f64f0f9"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 4952,
+        "sha256": null,
+        "git_sha1": "213f667d43be76ffdf226393fe58375f913747fc"
+      }
+    ]
+  },
+  "chatterV3": {
+    "repo": "mlx-community/chatterbox-multilingual-v3",
+    "revision": "03565773edd72e949572557597af8063bb49a18a",
+    "kind": "tts",
+    "quantizeOnLoad": true,
+    "files": [
+      {
+        "path": "Cangjie5_TC.json",
+        "size": 1920163,
+        "sha256": null,
+        "git_sha1": "d77891f84ca1db0d6f7058a4ee081d4bb0bfe88e"
+      },
+      {
+        "path": "config.json",
+        "size": 666,
+        "sha256": null,
+        "git_sha1": "d53329554e3ca5e3cf7441a9e9cbe0893251b8b1"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 2711113780,
+        "sha256": "e702f2c441e040bd360e59a86c85d462539759d665e41cfd1938adadd74187a3",
+        "git_sha1": "462a37b759f51035f90c4943f528a74a43774cbd"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 69989,
+        "sha256": null,
+        "git_sha1": "d27fb3f2fd38ca39b7bbfbf83a13b3c617e551df"
+      },
+      {
+        "path": "conds.safetensors",
+        "size": 105316,
+        "sha256": "709e5a7fa80e010a011c8244f553853aed7a49c106fff54008fbd89a0f5a6148",
+        "git_sha1": "21e97e2841634d567f2ec81ef41701be2f1c4c3c",
+        "repo": "mlx-community/chatterbox-8bit",
+        "revision": "9617d61b596a03d1bed766a28c341680e993a1b9"
+      }
+    ]
+  },
+  "large": {
+    "repo": "mlx-community/whisper-large-v3-asr-fp16",
+    "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
+    "kind": "stt",
+    "bits": 16,
+    "files": [
+      {
+        "path": "added_tokens.json",
+        "size": 34648,
+        "sha256": null,
+        "git_sha1": "1b33526d33aaa60d79f78ae8651dae50b730185a"
+      },
+      {
+        "path": "config.json",
+        "size": 1325,
+        "sha256": null,
+        "git_sha1": "1b88cf5410b2cb6f837169db98c626b32afffa79"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 3903,
+        "sha256": null,
+        "git_sha1": "f3294dfe3654ac4e362570867369ec48104af59f"
+      },
+      {
+        "path": "merges.txt",
+        "size": 493869,
+        "sha256": null,
+        "git_sha1": "6038932a2a1f09a66991b1c2adae0d14066fa29e"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 3083275393,
+        "sha256": "0039566aa15953315a26ab441944d97b914de0a2b5dc23492fada35ad4d0cfea",
+        "git_sha1": "1a2d0c7af756e28e1fb5d6a8c302e12e195617c7"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 82514,
+        "sha256": null,
+        "git_sha1": "e3feb13636c370b8361a28a96f856fefc8cbd199"
+      },
+      {
+        "path": "normalizer.json",
+        "size": 52666,
+        "sha256": null,
+        "git_sha1": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 340,
+        "sha256": null,
+        "git_sha1": "931c77a740890c46365c7ae0c9d350ba3cca908f"
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 2072,
+        "sha256": null,
+        "git_sha1": "3c18e97162d572f2b1d62e7e1c7b805f1be11dbe"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2480617,
+        "sha256": null,
+        "git_sha1": "3a5e2ba63acdcac9a19ba56cf9bd27f185bfff61"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 282843,
+        "sha256": null,
+        "git_sha1": "06ffdc8308eae6bb7bd1fdd81e94b0a881a539ab"
+      },
+      {
+        "path": "vocab.json",
+        "size": 1036558,
+        "sha256": null,
+        "git_sha1": "0f3456460629e21d559c6daa23ab6ce3644e8271"
+      }
+    ]
+  },
+  "supertonic3": {
+    "repo": "Supertone/supertonic-3",
+    "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+    "kind": "tts",
+    "bits": 32,
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 15007,
+        "sha256": null,
+        "git_sha1": "1e2cbe6cef94c8cdf3ed1fcebc0f5317ca7ad5a1"
+      },
+      {
+        "path": "onnx/duration_predictor.onnx",
+        "size": 3700147,
+        "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db",
+        "git_sha1": "3dc0f3ca70185b0ecb20ee812832fa8fd87d5f77"
+      },
+      {
+        "path": "onnx/text_encoder.onnx",
+        "size": 36416150,
+        "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff",
+        "git_sha1": "001b50875741258a8681a472d63929b2e18abe55"
+      },
+      {
+        "path": "onnx/tts.json",
+        "size": 8253,
+        "sha256": null,
+        "git_sha1": "28575b0793c92607a0f0a292550df9bd17709a79"
+      },
+      {
+        "path": "onnx/unicode_indexer.json",
+        "size": 277676,
+        "sha256": null,
+        "git_sha1": "3aaf4d33024aff0be455633c24b3636b3a810150"
+      },
+      {
+        "path": "onnx/vector_estimator.onnx",
+        "size": 256534781,
+        "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c",
+        "git_sha1": "e5e45d221db3825dc28fe20039cfca7e329cfd18"
+      },
+      {
+        "path": "onnx/vocoder.onnx",
+        "size": 101424195,
+        "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba",
+        "git_sha1": "b50be323eb0a124468b665e0e3e8380710090744"
+      },
+      {
+        "path": "voice_styles/F1.json",
+        "size": 292046,
+        "sha256": null,
+        "git_sha1": "421365f307ed1535d8da16845031d0e9fa3e60c5"
+      },
+      {
+        "path": "voice_styles/F2.json",
+        "size": 292423,
+        "sha256": null,
+        "git_sha1": "b09a3a433df8a4856d1d7d64736a56ddf37a4ea3"
+      },
+      {
+        "path": "voice_styles/F3.json",
+        "size": 290794,
+        "sha256": null,
+        "git_sha1": "a366f94c77c4b440404071f1a52bed3ccf83a5ff"
+      },
+      {
+        "path": "voice_styles/F4.json",
+        "size": 291808,
+        "sha256": null,
+        "git_sha1": "39c78a52795320c6101b7eaf984c0e2352fbdc18"
+      },
+      {
+        "path": "voice_styles/F5.json",
+        "size": 291479,
+        "sha256": null,
+        "git_sha1": "06983f8816ad00a8eeb7efd37a33d457587e16f8"
+      },
+      {
+        "path": "voice_styles/M1.json",
+        "size": 291748,
+        "sha256": null,
+        "git_sha1": "bddfff85a7c4c140c11620bd7005d86681dccdac"
+      },
+      {
+        "path": "voice_styles/M2.json",
+        "size": 292055,
+        "sha256": null,
+        "git_sha1": "602ff6c4d6d48cdb71c37461f7c175d71fe8b34b"
+      },
+      {
+        "path": "voice_styles/M3.json",
+        "size": 290198,
+        "sha256": null,
+        "git_sha1": "000b60436b77619b933fdc33628ad737595e6794"
+      },
+      {
+        "path": "voice_styles/M4.json",
+        "size": 291522,
+        "sha256": null,
+        "git_sha1": "aae253ae81185fa06a6469c3f1cdff04ed121ddf"
+      },
+      {
+        "path": "voice_styles/M5.json",
+        "size": 291469,
+        "sha256": null,
+        "git_sha1": "0536b252698830f8536c077edcb94e1ce4768ab6"
+      }
+    ]
+  },
+  "qwen06Custom": {
+    "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    "revision": "85e237c12c027371202489a0ec509ded67b5e4b5",
+    "kind": "tts",
+    "bits": 16,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 4908,
+        "sha256": null,
+        "git_sha1": "5e8d5fc100536984e3a89bd87ef08e59e322b29b"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1811626576,
+        "sha256": "bc3c7e785eb961179c25450d1acff03f839e0002f2f3a5aeb67b5735c0fa2adb",
+        "git_sha1": "7fcbae5382ce4359e3b538bad87c7bad6b931050"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  },
+  "qwen17Custom": {
+    "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe",
+    "kind": "tts",
+    "bits": 16,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 4908,
+        "sha256": null,
+        "git_sha1": "95d74b20b7485f5dfa09d05988d6c606ec226811"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 3833402552,
+        "sha256": "38b1d5971bdbd982b561cccec982669a53b0537c3cf5e9bd4778ed07bb2f5137",
+        "git_sha1": "c01bc81874a6a96fb082d716ce06c87420f01ece"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      }
+    ]
+  }
+}
