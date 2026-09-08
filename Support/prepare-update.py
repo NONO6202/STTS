@@ -1,5 +1,6 @@
 """Create signed update assets locally; does not publish or change GitHub state."""
 from pathlib import Path
+import argparse
 import plistlib
 import subprocess
 import xml.etree.ElementTree as ET
@@ -11,7 +12,13 @@ REPOSITORY = 'NONO6202/STTS'
 
 
 def main():
-    app = ROOT / 'dist/STTS.app'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--app', type=Path, default=ROOT / 'dist/STTS.app',
+                        help='App to sign for updating, including an app mounted from a verified DMG')
+    parser.add_argument('--output', type=Path,
+                        help='Fresh output directory for rebuilding an existing release without overwriting prior assets')
+    args = parser.parse_args()
+    app = args.app.resolve()
     info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
     version = info['CFBundleShortVersionString']
     if not version or any(c not in '0123456789.' for c in version):
@@ -23,11 +30,11 @@ def main():
     if public_key != info['SUPublicEDKey']:
         raise ValueError('The signing key does not match the public key embedded in the app')
     subprocess.run(['codesign', '--verify', '--deep', '--strict', app], check=True)
-    output = ROOT / 'dist/updates' / version
+    output = args.output.resolve() if args.output else ROOT / 'dist/updates' / version
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f'STTS-{version}-arm64.zip'
     if archive.exists():
-        raise FileExistsError(f'Update already prepared: {output}. Use a new version for a new release.')
+        raise FileExistsError(f'Update already prepared: {output}. Choose a fresh --output directory.')
     subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, archive], check=True)
     prefix = f'https://github.com/{REPOSITORY}/releases/download/v{version}/'
     subprocess.run([TOOLS / 'generate_appcast', '--account', ACCOUNT, '--maximum-deltas', '0',
