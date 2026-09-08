@@ -17,6 +17,7 @@ jobs:
         run: |
           # These two integration tests need an interactive desktop and Core Audio devices.
           swift test -c release --disable-xctest --filter SegmentationTests --skip 'composerClosesForRelativeMotionAndOutsideClicks|virtualMicrophoneChecksMuteAndOwnProcessBeforePlayback' -j 3
+          swift test -c release --disable-xctest --filter DefaultAudioDevicesTests -j 3
           .venv/bin/python -m unittest discover -s Tests -p 'test_mlx_protocol.py'
       - name: Upload DMG
         uses: actions/upload-artifact@v4

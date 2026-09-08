@@ -5,6 +5,7 @@ on:
     paths:
       - 'Windows/**'
       - 'Tests/test_windows*.py'
+      - 'Tests/default_devices*.cpp'
       - 'Tests/test_tts_phrases.py'
       - '.github/workflows/windows.yml'
 permissions:
@@ -26,6 +27,7 @@ jobs:
         id: tests
         shell: pwsh
         run: |
+          ./Windows/test-audio-defaults.ps1
           Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_windows*.py"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_tts_phrases.py"

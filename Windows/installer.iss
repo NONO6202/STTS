@@ -40,6 +40,8 @@ Source: "README.md"; DestDir: "{app}"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "STTS"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\RunOnce"; ValueName: "STTS Restore Audio Defaults"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\STTS\PendingAudioDefaults"; Flags: uninsdeletekey
 
 [Icons]
 Name: "{group}\STTS"; Filename: "{app}\STTS.exe"
@@ -81,12 +83,30 @@ begin
   Result := InstalledDriver;
 end;
 
+procedure AudioDefaultsCommand(Command: String);
+var
+  ResultCode: Integer;
+begin
+  { Defaults belong to the person running Setup, including when UAC uses
+    another administrator account. The rename operation still runs elevated. }
+  if not ExecAsOriginalUser(ExpandConstant('{app}\STTSMicrophone.exe'), Command,
+    ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    RaiseException('Could not preserve the current user''s audio devices. Please run STTS Setup again.');
+  Log(Format('Audio defaults %s: %d', [Command, ResultCode]));
+  if (ResultCode <> 0) and (ResultCode <> 3010) then
+    RaiseException('Could not preserve the original audio devices. Please check Windows sound settings and run STTS Setup again.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode, Attempt: Integer;
+  PreserveDefaults: Boolean;
 begin
   if CurStep <> ssPostInstall then Exit;
-  if not DriverExists then
+  PreserveDefaults := not DriverExists;
+  if PreserveDefaults then AudioDefaultsCommand('--save-defaults');
+  try
+  if PreserveDefaults then
   begin
     WizardForm.StatusLabel.Caption := 'Installing VB-CABLE virtual microphone by VB-Audio...';
     if not Exec(ExpandConstant('{app}\VB-CABLE\VBCABLE_Setup_x64.exe'), '-i -h',
@@ -112,6 +132,11 @@ begin
   end;
   if ResultCode <> 0 then
     RaiseException('The virtual microphone name could not be applied. Restart the PC and run STTS Setup again.');
+  finally
+    { Also restore when driver installation or endpoint naming fails. Pending
+      endpoints get one retry at the original user's next login. }
+    if PreserveDefaults then AudioDefaultsCommand('--restore-defaults');
+  end;
 end;
 
 function NeedRestart: Boolean;

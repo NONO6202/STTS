@@ -30,12 +30,18 @@ enum MicrophoneCheck {
     @MainActor static func run() async throws {
         let inputBefore = defaultDevice(kAudioHardwarePropertyDefaultInputDevice)
         let outputBefore = defaultDevice(kAudioHardwarePropertyDefaultOutputDevice)
+        let systemOutputBefore = defaultDevice(kAudioHardwarePropertyDefaultSystemOutputDevice)
         let player = AudioPlayback(); player.prepareOutput(); player.setVolume(0.5)
         let mic = VirtualMicrophone(identifier: "local.stts.check.\(UUID().uuidString)", tapUUID: UUID())
         defer { player.stop(); try? mic.remove() }
         try mic.prepare()
         guard defaultDevice(kAudioHardwarePropertyDefaultInputDevice) == inputBefore,
-              defaultDevice(kAudioHardwarePropertyDefaultOutputDevice) == outputBefore else { throw AppFailure("가상 입력 생성 후 기본 장치가 달라졌습니다.") }
+              defaultDevice(kAudioHardwarePropertyDefaultOutputDevice) == outputBefore,
+              defaultDevice(kAudioHardwarePropertyDefaultSystemOutputDevice) == systemOutputBefore else { throw AppFailure("가상 입력 생성 후 기본 장치가 달라졌습니다.") }
+        try await Task.sleep(for: .milliseconds(2300))
+        guard defaultDevice(kAudioHardwarePropertyDefaultInputDevice) == inputBefore,
+              defaultDevice(kAudioHardwarePropertyDefaultOutputDevice) == outputBefore,
+              defaultDevice(kAudioHardwarePropertyDefaultSystemOutputDevice) == systemOutputBefore else { throw AppFailure("가상 입력 생성 후 기본 장치가 지연 변경되었습니다.") }
         try AppPaths.prepare()
         let audio = AppPaths.temporary.appendingPathComponent(UUID().uuidString + ".wav")
         defer { try? FileManager.default.removeItem(at: audio) }

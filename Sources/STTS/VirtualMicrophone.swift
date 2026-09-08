@@ -22,6 +22,11 @@ import Darwin
         self.tapUUID = tapUUID ?? Self.savedTapUUID
     }
     func prepare() throws {
+        device = AudioHardware.ids(AudioObjectID(kAudioObjectSystemObject), selector: kAudioHardwarePropertyDevices).first {
+            AudioHardware.string($0, selector: kAudioDevicePropertyDeviceUID) == identifier
+        } ?? 0
+        let defaults: DefaultAudioDevices? = device == 0 ? try DefaultAudioDevices(createdUID: identifier) : nil
+        defer { defaults?.finish() }
         var pid = getpid(), size = UInt32(MemoryLayout<AudioObjectID>.size)
         var address = AudioHardware.address(kAudioHardwarePropertyTranslatePIDToProcessObject)
         try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, UInt32(MemoryLayout<pid_t>.size), &pid, &size, &source))
@@ -33,9 +38,6 @@ import Darwin
             let description = description(sending: false)
             try check(AudioHardwareCreateProcessTap(description, &tap))
         } else { try setSending(false, requireDevice: false) }
-        device = AudioHardware.ids(AudioObjectID(kAudioObjectSystemObject), selector: kAudioHardwarePropertyDevices).first {
-            AudioHardware.string($0, selector: kAudioDevicePropertyDeviceUID) == identifier
-        } ?? 0
         if device == 0 {
             let composition: [String: Any] = [
                 kAudioAggregateDeviceNameKey: Self.name, kAudioAggregateDeviceUIDKey: identifier,
