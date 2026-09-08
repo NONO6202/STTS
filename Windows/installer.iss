@@ -1,7 +1,10 @@
 #if !FileExists("build\bundle\build-complete.json")
   #error Build the complete app bundle before compiling Setup.
 #endif
-#define AppVersion "0.1.0"
+#if !FileExists("build\bundle\STTSMicrophone.exe")
+  #error Build the virtual microphone naming helper before compiling Setup.
+#endif
+#define AppVersion "0.1.1"
 [Setup]
 AppId={{7B7D5075-8B32-4F58-B765-9C15BA062001}
 AppName=STTS
@@ -15,7 +18,8 @@ OutputDir=..\dist
 OutputBaseFilename=STTS-{#AppVersion}-setup-x64
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-MinVersion=10.0.22000
+; CUDA 12.8 supports Windows 10 22H2 and later.
+MinVersion=10.0.19045
 PrivilegesRequired=admin
 Compression=lzma2/ultra64
 LZMAUseSeparateProcess=yes
@@ -45,6 +49,9 @@ Name: "{group}\Uninstall STTS"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "{app}\STTS.exe"; Description: "Launch STTS"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: Not DriverInstalledNow
+
+[UninstallRun]
+Filename: "{app}\STTSMicrophone.exe"; Parameters: "--restore"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreMicrophoneName"
 
 [Code]
 var
@@ -78,7 +85,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode, Attempt: Integer;
 begin
-  if (CurStep = ssPostInstall) and not DriverExists then
+  if CurStep <> ssPostInstall then Exit;
+  if not DriverExists then
   begin
     WizardForm.StatusLabel.Caption := 'Installing VB-CABLE virtual microphone by VB-Audio...';
     if not Exec(ExpandConstant('{app}\VB-CABLE\VBCABLE_Setup_x64.exe'), '-i -h',
@@ -94,6 +102,16 @@ begin
       RaiseException('VB-CABLE installation could not be confirmed. Restart the PC and run STTS Setup again.');
     InstalledDriver := True;
   end;
+  for Attempt := 1 to 10 do
+  begin
+    ResultCode := -1;
+    if Exec(ExpandConstant('{app}\STTSMicrophone.exe'),
+      '--rename "' + ExpandConstant('{app}\microphone-name.log') + '"',
+      ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then Break;
+    Sleep(1000);
+  end;
+  if ResultCode <> 0 then
+    RaiseException('The virtual microphone name could not be applied. Restart the PC and run STTS Setup again.');
 end;
 
 function NeedRestart: Boolean;

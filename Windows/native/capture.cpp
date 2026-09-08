@@ -1,4 +1,4 @@
-// STTS process-scoped WASAPI capture. Windows 11, 16 kHz mono PCM16 to stdout.
+// STTS process-scoped WASAPI capture. Windows 10 22H2 / 11, 16 kHz mono PCM16 to stdout.
 // Uses the documented ActivateAudioInterfaceAsync process-loopback API.
 #include <windows.h>
 #include <audioclient.h>

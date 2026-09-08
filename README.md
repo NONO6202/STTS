@@ -23,7 +23,7 @@ Discord 실시간 자막과 텍스트 음성 전송을 위한 데스크톱 앱.
 
 | 운영체제 | 요구 사항 | 설치 |
 | --- | --- | --- |
-| Windows | Windows 11, x64 | [0.1.0 EXE](https://github.com/NONO6202/STTS/releases/download/v0.1.0/STTS-0.1.0-setup-x64.exe) |
+| Windows | Windows 10 22H2 이상 / 11, x64 | [0.1.1 EXE](https://github.com/NONO6202/STTS/releases/download/v0.1.1/STTS-0.1.1-setup-x64.exe) |
 | macOS | macOS 26+, Apple Silicon | [0.1.0 DMG](https://github.com/NONO6202/STTS/releases/download/v0.1.0/STTS-0.1.0-arm64.dmg) |
 
 Windows 설치 파일에 실행 환경과 VB-CABLE 드라이버가 포함됩니다. 모델은 첫 사용 시 자동으로 다운로드합니다.
@@ -34,7 +34,7 @@ macOS 파일은 Apple 공증 전 배포본이며, 업데이트는 DMG로 수동 
 
 1. STTS를 설치하고 실행합니다. Windows에서 가상 마이크를 처음 설치했다면 PC를 재시작합니다.
 2. Discord **설정 → 음성 및 비디오 → 입력 장치**를 선택합니다.
-   - Windows: **CABLE Output (VB-Audio Virtual Cable)**
+   - Windows: **STTS (VB-Audio Virtual Cable)**
    - macOS: **STTS Microphone**
 3. **TTS**를 켜고 입력 단축키로 문장을 보냅니다. **STT**를 켜면 수신 음성이 자막으로 표시됩니다.
 

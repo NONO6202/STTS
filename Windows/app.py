@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QLabel, QPushButto
     QLineEdit, QPlainTextEdit, QSlider, QScrollArea, QStackedWidget, QVBoxLayout, QHBoxLayout,
     QButtonGroup, QColorDialog, QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QSizePolicy, QToolTip, QDialog)
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 DATA = Path(os.environ.get('STTS_DATA_DIR', str(Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'STTS')))
 DEFAULTS = {'tts': '기본', 'stt': '기본', 'language': 'ko', 'voice': 'Sohee', 'volume': 1.0,
     'caption_alpha': 0.8, 'caption_font': 21, 'caption_color': '#ffffff', 'caption_bg': '#000000',
@@ -386,7 +386,7 @@ class App:
         layout.addWidget(label('2. 음성 모델', heading=True))
         layout.addWidget(label('TTS·STT에서 사양을 선택하면 첫 사용 시 필요한 모델을 자동으로 다운로드하고 검증합니다. INT8 배포 파일을 직접 받으며, 일부 음성 처리 구성요소는 원본 정밀도를 사용합니다. 첫 다운로드에는 인터넷이 필요합니다.'))
         layout.addWidget(label('3. Discord 연결', heading=True))
-        layout.addWidget(label('Discord → 음성 및 비디오 → 입력 장치: CABLE Output\n스피커는 평소 사용하는 헤드셋·스피커를 선택하세요.\nTTS 사용을 켜고 입력 단축키로 문장을 보냅니다. TTS를 꺼도 공유 드라이버는 유지됩니다.'))
+        layout.addWidget(label('Discord → 음성 및 비디오 → 입력 장치: STTS (VB-Audio Virtual Cable)\n스피커는 평소 사용하는 헤드셋·스피커를 선택하세요.\nTTS 사용을 켜고 입력 단축키로 문장을 보냅니다. TTS를 꺼도 공유 드라이버는 유지됩니다.'))
         def done():
             self.config['setup_completed'] = True; self.save(); dialog.accept()
         line = row(); line.addWidget(button('나중에', dialog.reject)); line.addStretch(); line.addWidget(button('사용 시작', done)); layout.addLayout(line)

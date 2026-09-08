@@ -34,8 +34,8 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: STTS-0.1.0-windows-x64
-          path: dist/STTS-0.1.0-setup-x64.exe
+          name: STTS-0.1.1-windows-x64
+          path: dist/STTS-0.1.1-setup-x64.exe
           compression-level: 0
           retention-days: 7
       - name: Upload verification summary

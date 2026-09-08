@@ -82,7 +82,22 @@ def cable_output(*, refresh=False):
     if candidates: return min(candidates)[1]
     raise RuntimeError('사용 가능한 재생 장치 CABLE Input을 찾지 못했습니다.\n'
         'Windows 소리 설정의 재생 장치에서 CABLE Input의 사용 상태를 확인하세요.\n'
-        'CABLE Output은 Discord에서 선택하는 녹음 장치입니다.')
+        'STTS (VB-Audio Virtual Cable)는 Discord에서 선택하는 녹음 장치입니다.')
+
+
+def cable_input():
+    from setup_check import cable_levels
+    endpoint = cable_levels().get('capture')
+    if endpoint is None:
+        raise RuntimeError('STTS 가상 마이크가 없거나 사용 중지 상태입니다.')
+    name = ''.join(endpoint['name'].casefold().split())
+    devices, apis = sd.query_devices(), sd.query_hostapis()
+    matches = [i for i, d in enumerate(devices) if d['max_input_channels'] > 0
+               and ''.join(d['name'].casefold().split()) == name
+               and apis[d['hostapi']]['name'] == 'Windows WASAPI']
+    if len(matches) != 1:
+        raise RuntimeError('STTS 녹음 장치를 확인하지 못했습니다. Windows 마이크 접근 권한과 장치 상태를 확인하세요.')
+    return matches[0]
 
 def play_cable(samples, rate, volume, stop):
     from scipy.signal import resample_poly

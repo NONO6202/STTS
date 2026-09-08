@@ -13,7 +13,8 @@ VB-CABLE is not owned by STTS and remains subject to its original license.
 
 Installing the virtual microphone requires administrator permission and a PC
 restart. Existing VB-CABLE installations are reused. In Discord, select
-"CABLE Output (VB-Audio Virtual Cable)" as the input device. Select your
+"STTS (VB-Audio Virtual Cable)" as the input device. STTS renames only
+the capture endpoint; the original VB-Audio driver is unchanged. Select your
 headphones/speakers as Discord's output device. STTS sends generated speech
 to "CABLE Input"; it never routes generated speech to physical speakers.
 

@@ -12,11 +12,8 @@ import sounddevice as sd
 
 
 def audio_device(input=False):
-    name = 'CABLE Output' if input else 'CABLE Input'
-    for i, d in enumerate(sd.query_devices()):
-        if name in d['name'] and d['max_input_channels' if input else 'max_output_channels'] > 0 and sd.query_hostapis(d['hostapi'])['name'] == 'Windows WASAPI':
-            return i
-    raise RuntimeError(f'Missing {name}: {sd.query_devices()}')
+    from audio import cable_input, cable_output
+    return cable_input() if input else cable_output()
 
 
 def play(path):
@@ -41,7 +38,7 @@ def main(install=None, validation=None):
     log = (validation / 'worker-stderr.log').open('w', encoding='utf-8')
     engine = install / 'Engine' / 'STTSWorker.exe'
     worker = subprocess.Popen([str(engine if engine.is_file() else install / 'STTSWorker.exe')], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=log, text=True, encoding='utf-8', bufsize=1)
+        stderr=log, text=True, encoding='utf-8', bufsize=1, creationflags=subprocess.CREATE_NO_WINDOW)
     def request(value):
         worker.stdin.write(json.dumps(value, ensure_ascii=False) + '\n'); worker.stdin.flush()
         for line in worker.stdout:
@@ -75,7 +72,7 @@ def main(install=None, validation=None):
                 stderr=subprocess.PIPE, text=True, encoding='utf-8', creationflags=subprocess.CREATE_NO_WINDOW)
             assert player.stdout.readline().strip() == 'READY'
             capture = subprocess.Popen([str(install / 'STTSCapture.exe'), str(player.pid)],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=subprocess.CREATE_NO_WINDOW)
             pipe = []
             reader = threading.Thread(target=lambda: pipe.append(capture.communicate(timeout=120)))
             reader.start()

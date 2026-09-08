@@ -9,7 +9,7 @@ try {
         if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Installer automation is limited to the disposable GitHub runner. Run Setup interactively on your PC.' }
         foreach ($Service in @('AudioEndpointBuilder', 'Audiosrv')) { Set-Service $Service -StartupType Manual; Start-Service $Service }
         $InstallDir = Join-Path $PSScriptRoot 'build\installed'
-        $Installer = (Resolve-Path '..\dist\STTS-0.1.0-setup-x64.exe').Path
+        $Installer = (Resolve-Path '..\dist\STTS-0.1.1-setup-x64.exe').Path
         $Process = Start-Process $Installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$InstallDir`"", "/LOG=`"$Validation\installer.log`"") -WindowStyle Hidden -PassThru
         if (-not $Process.WaitForExit(600000)) { $Process.Kill(); throw 'Installer timed out' }
         if ($Process.ExitCode -notin @(0, 3010)) { throw "Installer failed: $($Process.ExitCode)" }
@@ -21,6 +21,7 @@ try {
     if (-not (Test-Path $Marker)) { throw 'The package build has not completed.' }
     $Built = Get-Content $Marker -Raw | ConvertFrom-Json
     if ((Get-FileHash $Exe).Hash -ne $Built.gui -or (Get-FileHash (Join-Path $InstallDir 'Engine\STTSWorker.exe')).Hash -ne $Built.worker) { throw 'Packaged executables do not match the completed build.' }
+    if ((Get-FileHash (Join-Path $InstallDir 'STTSMicrophone.exe')).Hash -ne $Built.microphone) { throw 'Microphone helper does not match the completed build.' }
     $env:STTS_DATA_DIR = Join-Path $Validation 'data'
     $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\Wbem"
     $env:PYTHONPATH = $null

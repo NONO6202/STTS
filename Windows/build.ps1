@@ -50,7 +50,7 @@ if ($Signature.Status -ne 'Valid') { throw 'VB-CABLE catalog signature is not va
 $VSWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $VSPath = & $VSWhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 $DevCmd = Join-Path $VSPath 'Common7\Tools\VsDevCmd.bat'
-$NativeScript = "@echo off`r`ncall `"$DevCmd`" -arch=x64 -host_arch=x64`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /std:c++17 /EHsc /W4 /O2 /MT /DUNICODE /D_UNICODE native\capture.cpp /Febuild\bundle\STTSCapture.exe /Fobuild\capture.obj /link Ole32.lib Mmdevapi.lib RuntimeObject.lib`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /std:c++17 /EHsc /W4 /O2 /MT native\gpu.cpp /Febuild\bundle\STTSGPU.exe /Fobuild\gpu.obj /link Dxgi.lib D3d12.lib`r`nexit /b %errorlevel%`r`n"
+$NativeScript = "@echo off`r`ncall `"$DevCmd`" -arch=x64 -host_arch=x64`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /std:c++17 /EHsc /W4 /O2 /MT /DUNICODE /D_UNICODE native\capture.cpp /Febuild\bundle\STTSCapture.exe /Fobuild\capture.obj /link Ole32.lib Mmdevapi.lib RuntimeObject.lib`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /std:c++17 /EHsc /W4 /O2 /MT native\gpu.cpp /Febuild\bundle\STTSGPU.exe /Fobuild\gpu.obj /link Dxgi.lib D3d12.lib`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /std:c++17 /EHsc /W4 /O2 /MT /DUNICODE /D_UNICODE native\microphone.cpp /Febuild\bundle\STTSMicrophone.exe /Fobuild\microphone.obj /link Ole32.lib Advapi32.lib Propsys.lib`r`nexit /b %errorlevel%`r`n"
 Set-Content 'build\native-build.cmd' $NativeScript -Encoding ascii
 Invoke-Checked cmd @('/d', '/c', 'build\native-build.cmd')
 Invoke-Freeze -Arguments @('-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--console', '--name', 'STTSWorker',
@@ -71,12 +71,13 @@ Copy-Item 'build\bundle\STTSGPU.exe' 'build\bundle\Engine\STTSGPU.exe' -Force
 Copy-Item 'build\frozen\STTS\*' 'build\bundle' -Recurse -Force
 Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 @{
-    version = '0.1.0'
+    version = '0.1.1'
     gui = (Get-FileHash 'build\bundle\STTS.exe' -Algorithm SHA256).Hash
     worker = (Get-FileHash 'build\bundle\Engine\STTSWorker.exe' -Algorithm SHA256).Hash
+    microphone = (Get-FileHash 'build\bundle\STTSMicrophone.exe' -Algorithm SHA256).Hash
 } | ConvertTo-Json | Set-Content -LiteralPath $BuildMarker -Encoding utf8
 if ($SkipInstaller) { return }
 $ISCC = if ($Compiler) { $Compiler } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
 if (-not (Test-Path $ISCC)) { throw 'Install Inno Setup 6 before building.' }
 Invoke-Checked $ISCC @('installer.iss')
-Get-FileHash '..\dist\STTS-0.1.0-setup-x64.exe' -Algorithm SHA256
+Get-FileHash '..\dist\STTS-0.1.1-setup-x64.exe' -Algorithm SHA256

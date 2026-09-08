@@ -2,6 +2,14 @@
 import time
 import threading
 
+ADAPTER_NAME = 'VB-Audio Virtual Cable'
+ADAPTER_PROPERTY = '{026E516E-B814-414B-83CD-856D6FEF4822} 2'
+
+
+def is_cable_endpoint(device):
+    # The adapter identity survives the user's editable endpoint name.
+    return device.properties.get(ADAPTER_PROPERTY, '').casefold() == ADAPTER_NAME.casefold()
+
 
 def cable_levels(repair=False):
     import comtypes
@@ -10,8 +18,7 @@ def cable_levels(repair=False):
     try:
         found = {}
         for device in AudioUtilities.GetAllDevices(device_state=1):
-            name = ''.join(device.FriendlyName.casefold().split())
-            if not ('vb-audiovirtualcable' in name or name.startswith(('cableinput(', 'cableoutput('))):
+            if not is_cable_endpoint(device):
                 continue
             role = 'playback' if device.id.startswith('{0.0.0.') else 'capture' if device.id.startswith('{0.0.1.') else None
             if role is None: continue
@@ -31,7 +38,7 @@ def cable_levels(repair=False):
 def inspect(repair=False):
     levels = cable_levels(repair)
     problems = []
-    for key, name in [('playback', 'CABLE Input'), ('capture', 'CABLE Output')]:
+    for key, name in [('playback', 'CABLE Input'), ('capture', 'STTS / CABLE Output')]:
         value = levels.get(key)
         if value is None: problems.append(name + ' 장치가 없거나 사용 중지 상태입니다.')
         elif value['mute'] or value['volume'] <= .001 or max(value['channels'], default=0) <= .001:
@@ -41,16 +48,11 @@ def inspect(repair=False):
 
 def signal_test():
     import numpy as np
-    from audio import cable_output, play_cable, sd
+    from audio import cable_output, cable_input, play_cable, sd
     result = inspect()
     if not result['ok']: return result
     cable_output(refresh=True)
-    devices, apis = sd.query_devices(), sd.query_hostapis()
-    candidates = [i for i, d in enumerate(devices) if d['max_input_channels'] > 0
-                  and 'cableoutput' in ''.join(d['name'].casefold().split())
-                  and apis[d['hostapi']]['name'] == 'Windows WASAPI']
-    if not candidates: raise RuntimeError('CABLE Output 녹음 장치를 찾지 못했습니다. Windows 마이크 접근 권한도 확인하세요.')
-    index = candidates[0]; rate = int(devices[index]['default_samplerate']); received = []
+    index = cable_input(); rate = int(sd.query_devices(index)['default_samplerate']); received = []
     def callback(data, frames, timing, status): received.append(data.copy())
     # A distinctive synthetic tone, sent only when the user requests this test.
     t = np.arange(24000, dtype=np.float32) / 24000
@@ -63,6 +65,6 @@ def signal_test():
     band = spectrum[abs(freq-997) < 4]
     amplitude = float(band.max(initial=0) * 2 / len(samples))
     result.update(ok=amplitude > .003, received_tone_amplitude=amplitude)
-    result['message'] = ('테스트 신호가 CABLE Output까지 도착했습니다. Discord 입력도 CABLE Output으로 선택하세요.'
+    result['message'] = ('테스트 신호가 가상 마이크까지 도착했습니다. Discord 입력에서 STTS (VB-Audio Virtual Cable)를 선택하세요.'
                          if result['ok'] else '출력은 열렸지만 테스트 신호가 수신되지 않았습니다. Windows 소리 설정을 확인하세요.')
     return result

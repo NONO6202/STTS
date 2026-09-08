@@ -1,10 +1,10 @@
 # Windows
 
-Windows 11 x64용 STTS 설치 및 사용 안내.
+Windows 10 22H2(빌드 19045) 이상 및 Windows 11 x64용 STTS 설치 및 사용 안내.
 
 ## 설치
 
-1. [릴리스](https://github.com/NONO6202/STTS/releases/latest)에서 `STTS-0.1.0-setup-x64.exe`를 받습니다.
+1. [릴리스](https://github.com/NONO6202/STTS/releases/latest)에서 `STTS-0.1.1-setup-x64.exe`를 받습니다.
 2. 실행 중인 STTS를 트레이 메뉴에서 종료한 뒤 설치 파일을 실행합니다.
 3. 관리자 승인을 허용합니다. VB-CABLE을 처음 설치했다면 PC를 재시작합니다.
 4. STTS의 **처음 설정** 안내를 따릅니다.
@@ -13,8 +13,10 @@ Python, pip, CUDA Toolkit을 별도로 설치할 필요가 없습니다. GPU 사
 
 ## Discord 연결
 
-- 입력 장치: **CABLE Output (VB-Audio Virtual Cable)**
+- 입력 장치: **STTS (VB-Audio Virtual Cable)**
 - 출력 장치: 평소 사용하는 헤드폰·스피커
+
+설치 시 가상 마이크 이름을 `STTS`로 지정합니다. Windows는 뒤에 `(VB-Audio Virtual Cable)`을 표시합니다. 이전 이름이 보이면 Discord를 다시 실행하세요. STTS 제거 시 직접 바꾸지 않은 마이크 이름은 설치 전 이름으로 복구됩니다.
 
 **처음 설정 · 연결 점검**에서 음소거·0% 음량을 확인합니다. **케이블 음량 복구**는 가상 케이블 음량을 복구합니다. **신호 테스트**는 케이블로 테스트음을 보내 수신을 확인하므로 통화 밖에서 실행합니다.
 
