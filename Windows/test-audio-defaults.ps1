@@ -1,6 +1,7 @@
 param([switch]$Integration)
 $ErrorActionPreference = 'Stop'
-Set-Location $PSScriptRoot
+Push-Location $PSScriptRoot
+try {
 $VSWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $VSPath = & $VSWhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 if ($LASTEXITCODE -ne 0 -or -not $VSPath) { throw 'Visual C++ build tools are required.' }
@@ -19,3 +20,6 @@ exit /b %errorlevel%
 Set-Content -LiteralPath build\default-device-tests\run.cmd -Value $Script -Encoding ascii
 & cmd /d /c build\default-device-tests\run.cmd
 if ($LASTEXITCODE -ne 0) { throw "Audio default tests failed: $LASTEXITCODE" }
+} finally {
+    Pop-Location
+}

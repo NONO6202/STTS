@@ -61,6 +61,25 @@ int main() {
         require(RegOpenKeyExW(HKEY_CURRENT_USER, defaultsKey, 0, KEY_READ, &existing) == ERROR_FILE_NOT_FOUND,
             "Pending snapshot was not removed");
         printf("All six audio defaults verified; %d roles repaired.\n", changed);
+        // After completion, choosing STTS manually must survive another helper
+        // invocation. Then exercise the same restoration entry used at login.
+        require(SUCCEEDED(original.policy->SetDefaultEndpoint(cables[0].c_str(), eCommunications)), "Manual choice");
+        require(restoreDefaults(original.enumerator.Get(), false) == S_OK, "Completed restore is a no-op");
+        std::wstring chosen;
+        require(SUCCEEDED(defaultID(original.enumerator.Get(), eRender, eCommunications, chosen)) && chosen == cables[0],
+            "A later manual choice was overwritten");
+        for (int i = 0; i < 6; ++i) if (!original.ids[i].empty())
+            require(SUCCEEDED(original.policy->SetDefaultEndpoint(original.ids[i].c_str(), static_cast<ERole>(i % 3))), "Reset test defaults");
+        require(SUCCEEDED(saveDefaults(original.enumerator.Get())), "Save login defaults");
+        for (int i = 0; i < 6; ++i) if (!original.ids[i].empty())
+            require(SUCCEEDED(original.policy->SetDefaultEndpoint(cables[i / 3].c_str(), static_cast<ERole>(i % 3))), "Simulate delayed selection");
+        require(restoreDefaults(original.enumerator.Get(), true) == S_OK, "Login restoration");
+        for (int i = 0; i < 6; ++i) {
+            std::wstring current;
+            require(SUCCEEDED(defaultID(original.enumerator.Get(), static_cast<EDataFlow>(i / 3),
+                static_cast<ERole>(i % 3), current)) && current == original.ids[i], "Login default not restored");
+        }
+        puts("Later manual choice and one-shot login restoration verified.");
     } catch (const std::exception& error) { fprintf(stderr, "%s\n", error.what()); return 1; }
     return 0;
 }
