@@ -14,9 +14,11 @@ jobs:
       - name: Test speech segmentation and audio defaults
         run: |
           source Support/swift-env.sh
+          # The resident-worker regression launches this interpreter before packaging.
+          uv venv .venv --python /opt/homebrew/bin/python3
+          swift test -c release --disable-xctest --filter DefaultAudioDevicesTests -j 3
           # These two integration tests need an interactive desktop and Core Audio devices.
           swift test -c release --disable-xctest --filter SegmentationTests --skip 'composerClosesForRelativeMotionAndOutsideClicks|virtualMicrophoneChecksMuteAndOwnProcessBeforePlayback' -j 3
-          swift test -c release --disable-xctest --filter DefaultAudioDevicesTests -j 3
       - name: Build application and DMG
         run: bash Support/build-macos.sh
       - name: Test worker protocol
