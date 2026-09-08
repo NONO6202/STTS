@@ -19,9 +19,11 @@ jobs:
         with:
           python-version: '3.13'
       - name: Build app and bundled virtual microphone installer
+        id: package
         shell: pwsh
         run: ./Windows/build.ps1
       - name: Run regression tests
+        id: tests
         shell: pwsh
         run: |
           Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_windows*.py"
@@ -32,6 +34,9 @@ jobs:
         shell: pwsh
         run: ./Windows/verify.ps1 -InstallOnDisposableRunner
       - name: Upload installer
+        # Preserve a build for explicit device testing even if the runner's audio device check fails.
+        # The verification step and failed job status remain visible.
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && steps.tests.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: STTS-0.1.2-windows-x64
