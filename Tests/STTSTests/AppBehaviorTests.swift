@@ -5,6 +5,29 @@ import Testing
 @testable import STTS
 
 @Suite(.serialized) struct AppBehaviorTests {
+    @Test @MainActor func voiceMonitoringDefaultsOffAndPersists() throws {
+        let defaults = UserDefaults.standard, key = "voiceMonitoring"
+        let saved = defaults.object(forKey: key)
+        defer {
+            if let saved { defaults.set(saved, forKey: key) } else { defaults.removeObject(forKey: key) }
+        }
+        defaults.removeObject(forKey: key)
+        let state = AppState()
+        #expect(!state.voiceMonitoring)
+        state.voiceMonitoring = true
+        #expect(AppState().voiceMonitoring)
+        let view = NSHostingView(rootView: MainView(state: state))
+        view.frame = NSRect(x: 0, y: 0, width: 680, height: 605)
+        view.layoutSubtreeIfNeeded()
+        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".validation/voice-monitor/tts-mac.png")
+        try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try #require(bitmap.representation(using: .png, properties: [:])).write(to: output)
+        state.voiceMonitoring = false
+        #expect(!AppState().voiceMonitoring)
+    }
+
     @Test @MainActor func updateReminderTracksAvailableVersionsWithoutInterruptingBackgroundWork() throws {
         let updates = AppUpdater()
         let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: updates, userDriverDelegate: updates)

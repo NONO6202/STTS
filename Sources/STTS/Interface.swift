@@ -45,6 +45,9 @@ struct MainView: View {
                             Text("음량"); Slider(value: $state.volume, in: 0...1)
                             Text("\(Int(state.volume * 100))% ").monospacedDigit().frame(width: 46)
                         }
+                        Toggle("목소리 모니터링", isOn: $state.voiceMonitoring)
+                            .toggleStyle(.checkbox).disabled(!state.ttsEnabled || state.speaking)
+                            .help("전송하는 TTS 목소리를 기본 스피커·헤드폰에서도 함께 듣습니다.")
                         VStack(alignment: .leading, spacing: 10) {
                             Text("입력창 모양").font(.headline).padding(.top, 10)
                             SurfaceControls(style: $state.windowStyle).padding(.top, 8)

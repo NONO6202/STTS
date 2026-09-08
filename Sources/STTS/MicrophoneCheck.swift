@@ -44,7 +44,8 @@ enum MicrophoneCheck {
         buffer.frameLength = 48000
         for i in 0..<48000 { buffer.floatChannelData![0][i] = 0.1 * sin(2 * .pi * 997 * Float(i) / 48000) }
         do { let file = try AVAudioFile(forWriting: audio, settings: format.settings); try file.write(from: buffer) }
-        func capturePlayback() async throws -> [String: Any] {
+        func capturePlayback(monitoring: Bool = false) async throws -> [String: Any] {
+            if monitoring { try mic.setSending(true, monitoring: true) }
             let child = Process(), stdout = Pipe()
             child.executableURL = Bundle.main.executableURL
             child.arguments = ["--microphone-receiver", mic.identifier]
@@ -66,6 +67,13 @@ enum MicrophoneCheck {
               let frames = result["samples"] as? Int, frames > 1000 else {
             throw AppFailure("가상 입력의 오디오 신호를 확인하지 못했습니다. STTS의 시스템 오디오 녹음 권한을 확인해 주세요.")
         }
+        let repeated = try await capturePlayback()
+        let monitored = try await capturePlayback(monitoring: true)
+        guard let monitoredPeak = monitored["peak"] as? Double,
+              let repeatedPeak = repeated["peak"] as? Double,
+              monitoredPeak > 0.005, abs(monitoredPeak - repeatedPeak) < 0.001 else {
+            throw AppFailure("모니터링 가상 입력 검사 실패: 최초=\(peak), 반복=\(repeated), 모니터링=\(monitored)")
+        }
         // Keep the verification tone inaudible while testing the preview exclusion separately.
         var pid = getpid(), source: AudioObjectID = 0, sourceSize: UInt32 = 4
         var sourceAddress = AudioHardware.address(kAudioHardwarePropertyTranslatePIDToProcessObject)
@@ -86,7 +94,8 @@ enum MicrophoneCheck {
             AudioHardware.string($0, selector: kAudioTapPropertyUID) == mic.tapUUID.uuidString
         }) else { throw AppFailure("이전 가상 입력 장치를 제거하지 못했습니다.") }
         try emit(["microphone": "CoreAudio public tap", "separateProcessInput": true,
-                  "muteConfigurationVerified": true, "previewExcluded": true, "previewPeak": previewPeak, "defaultDevicesUnchanged": true, "removedByNewInstance": true, "peak": peak, "samples": frames])
+                  "muteConfigurationVerified": true, "monitoringConfigurationVerified": true,
+                  "repeatedPeak": repeatedPeak, "monitoringPeak": monitoredPeak, "previewExcluded": true, "previewPeak": previewPeak, "defaultDevicesUnchanged": true, "removedByNewInstance": true, "peak": peak, "samples": frames])
     }
     static func receive(identifier: String) throws {
         guard identifier.hasPrefix("local.stts.check."),

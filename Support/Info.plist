@@ -6,8 +6,8 @@
 <key>CFBundleName</key><string>STTS</string>
 <key>CFBundleDisplayName</key><string>STTS</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>10</string>
+<key>CFBundleShortVersionString</key><string>0.1.2</string>
+<key>CFBundleVersion</key><string>12</string>
 <key>SUFeedURL</key><string>https://github.com/NONO6202/STTS/releases/latest/download/appcast.xml</string>
 <key>SUPublicEDKey</key><string>HBhrnlPC2RbCRuO0c/rlNzLo55UYMONYv802CCl94uk=</string>
 <key>SUEnableAutomaticChecks</key><true/>

@@ -49,26 +49,26 @@ import Darwin
             try check(AudioObjectSetPropertyData(device, &property, 0, nil, UInt32(MemoryLayout<CFArray>.size), &list))
         }
     }
-    private func description(sending: Bool) -> CATapDescription {
+    private func description(sending: Bool, monitoring: Bool = false) -> CATapDescription {
         let value = CATapDescription(monoMixdownOfProcesses: sending ? [source] : [])
         value.uuid = tapUUID; value.name = Self.name; value.isPrivate = false
         value.isExclusive = false; value.isProcessRestoreEnabled = false
-        value.muteBehavior = .muted
+        value.muteBehavior = sending && monitoring ? .unmuted : .muted
         return value
     }
-    func setSending(_ sending: Bool, requireDevice: Bool = true) throws {
+    func setSending(_ sending: Bool, monitoring: Bool = false, requireDevice: Bool = true) throws {
         guard tap != 0, AudioHardware.string(tap, selector: kAudioTapPropertyUID) == tapUUID.uuidString,
               !requireDevice || (device != 0 && AudioHardware.string(device, selector: kAudioDevicePropertyDeviceUID) == identifier) else {
             throw AppFailure("가상 마이크가 없습니다. TTS 사용을 껐다 켜 주세요.")
         }
-        var value = description(sending: sending)
+        var value = description(sending: sending, monitoring: monitoring)
         var property = AudioHardware.address(kAudioTapPropertyDescription)
         try check(AudioObjectSetPropertyData(tap, &property, 0, nil, UInt32(MemoryLayout<CATapDescription>.size), &value))
-        // Never start speaker playback unless the tap accepted the exact mute/filter configuration.
+        // Monitoring changes hardware audibility, never the single captured TTS stream.
         var readback: Unmanaged<CFTypeRef>?, size = UInt32(MemoryLayout<Unmanaged<CFTypeRef>?>.size)
         try check(AudioObjectGetPropertyData(tap, &property, 0, nil, &size, &readback))
         guard let actual = readback?.takeRetainedValue() as? CATapDescription,
-              actual.muteBehavior == .muted, !actual.isExclusive,
+              actual.muteBehavior == value.muteBehavior, !actual.isExclusive,
               actual.processes == (sending ? [source] : []) else { throw AppFailure("가상 마이크의 송신 경로를 확인하지 못했습니다.") }
     }
     func disconnect() { if tap != 0 { try? setSending(false, requireDevice: false) } }

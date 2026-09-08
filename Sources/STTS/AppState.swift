@@ -61,6 +61,9 @@ import AVFoundation
     @Published var volume = Preferences.read("volume", fallback: 1.0) {
         didSet { Preferences.save(volume, key: "volume"); playback.setVolume(volume) }
     }
+    @Published var voiceMonitoring = Preferences.read("voiceMonitoring", fallback: false) {
+        didSet { Preferences.save(voiceMonitoring, key: "voiceMonitoring") }
+    }
     @Published var windowStyle = Preferences.read("windowStyle", fallback: SurfaceStyle.window) {
         didSet { Preferences.save(windowStyle, key: "windowStyle"); appearanceChanged?() }
     }
@@ -460,12 +463,13 @@ import AVFoundation
                     }.value
                 } else { url = try await request.synthesize(text: text, language: language); generated = url }
                 guard speechID == token, !Task.isCancelled else { try? FileManager.default.removeItem(at: url); return }
-                if microphoneReady { try microphone.setSending(!preview) }
+                if microphoneReady { try microphone.setSending(!preview, monitoring: voiceMonitoring) }
                 else if !preview { throw AppFailure("가상 마이크를 다시 연결해 주세요.") }
                 ttsStatus = preview ? "미리 듣는 중…" : "가상 마이크로 보내는 중…"; playback.setVolume(volume)
                 try playback.play(url, deviceUID: "") { [weak self] in
                     try? FileManager.default.removeItem(at: url)
                     guard let self, self.speechID == token else { return }
+                    self.microphone.disconnect()
                     self.speaking = false; self.speechRequest = nil; self.ttsStatus = "대기"
                     self.ttsExpiry = Task {
                         try? await Task.sleep(for: .seconds(30))
