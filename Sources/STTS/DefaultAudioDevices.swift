@@ -95,7 +95,8 @@ struct DefaultAudioDeviceRole {
 
     private func stop() {
         stopped = true
-        for (var address, listener) in listeners {
+        for (savedAddress, listener) in listeners {
+            var address = savedAddress
             AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener)
         }
         listeners.removeAll()
