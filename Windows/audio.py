@@ -99,10 +99,9 @@ def cable_input():
         raise RuntimeError('STTS 녹음 장치를 확인하지 못했습니다. Windows 마이크 접근 권한과 장치 상태를 확인하세요.')
     return matches[0]
 
-def play_cable(samples, rate, volume, stop):
+def _play_output(samples, rate, index, volume, cancelled):
     from scipy.signal import resample_poly
     from math import gcd
-    index = cable_output()  # Never fall back to a physical speaker or another device.
     info = sd.query_devices(index)
     target = int(info['default_samplerate'])
     if target != rate:
@@ -113,12 +112,46 @@ def play_cable(samples, rate, volume, stop):
     settings = sd.WasapiSettings(auto_convert=True) if sd.query_hostapis(info['hostapi'])['name'] == 'Windows WASAPI' else None
     with sd.OutputStream(device=index, samplerate=target, channels=channels, dtype='float32', latency='high', extra_settings=settings) as stream:
         for offset in range(0, len(samples), 2048):
-            if stop.is_set():
+            if cancelled():
                 stream.abort()
                 return
             gain = volume() if callable(volume) else volume
             chunk = np.repeat(np.clip(samples[offset:offset + 2048, None] * gain, -1, 1), channels, axis=1)
             stream.write(chunk)
+
+def play_cable(samples, rate, volume, stop, *, monitor=False):
+    index = cable_output()  # The transmitted stream never falls back to another device.
+    monitor_stop = threading.Event()
+    monitor_errors = []
+    monitor_thread = None
+
+    def play_monitor():
+        try:
+            info = sd.query_devices(kind='output')
+            name = ''.join(info['name'].casefold().split())
+            if (info['index'] == index or info['max_output_channels'] <= 0
+                    or 'vb-audiovirtualcable' in name or name.startswith(('cableinput', 'cablein16ch'))):
+                raise RuntimeError('Windows 기본 출력 장치를 스피커·헤드폰으로 선택하세요.')
+            _play_output(samples, rate, info['index'], volume,
+                         lambda: stop.is_set() or monitor_stop.is_set())
+        except Exception as error:
+            monitor_errors.append(str(error))
+
+    if monitor and not stop.is_set():
+        # Separate device clocks must not block each other's writes or slow TTS delivery.
+        monitor_thread = threading.Thread(target=play_monitor, daemon=True)
+        monitor_thread.start()
+    try:
+        _play_output(samples, rate, index, volume, stop.is_set)
+    except BaseException:
+        monitor_stop.set()
+        raise
+    finally:
+        if monitor_thread is not None:
+            monitor_thread.join()
+    if monitor_errors and not stop.is_set():
+        return 'TTS는 전송했지만 목소리 모니터링을 하지 못했습니다: ' + monitor_errors[0]
+    return None
 
 def discord_pid():
     candidates = {}

@@ -4,7 +4,7 @@
 #if !FileExists("build\bundle\STTSMicrophone.exe")
   #error Build the virtual microphone naming helper before compiling Setup.
 #endif
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.2"
 [Setup]
 AppId={{7B7D5075-8B32-4F58-B765-9C15BA062001}
 AppName=STTS

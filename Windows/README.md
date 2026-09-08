@@ -4,7 +4,7 @@ Windows 10 22H2(빌드 19045) 이상 및 Windows 11 x64용 STTS 설치 및 사�
 
 ## 설치
 
-1. [릴리스](https://github.com/NONO6202/STTS/releases/latest)에서 `STTS-0.1.1-setup-x64.exe`를 받습니다.
+1. [릴리스](https://github.com/NONO6202/STTS/releases/latest)에서 `STTS-0.1.2-setup-x64.exe`를 받습니다.
 2. 실행 중인 STTS를 트레이 메뉴에서 종료한 뒤 설치 파일을 실행합니다.
 3. 관리자 승인을 허용합니다. VB-CABLE을 처음 설치했다면 PC를 재시작합니다.
 4. STTS의 **처음 설정** 안내를 따릅니다.

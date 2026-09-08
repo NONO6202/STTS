@@ -9,7 +9,7 @@ try {
         if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Installer automation is limited to the disposable GitHub runner. Run Setup interactively on your PC.' }
         foreach ($Service in @('AudioEndpointBuilder', 'Audiosrv')) { Set-Service $Service -StartupType Manual; Start-Service $Service }
         $InstallDir = Join-Path $PSScriptRoot 'build\installed'
-        $Installer = (Resolve-Path '..\dist\STTS-0.1.1-setup-x64.exe').Path
+        $Installer = (Resolve-Path '..\dist\STTS-0.1.2-setup-x64.exe').Path
         $Process = Start-Process $Installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$InstallDir`"", "/LOG=`"$Validation\installer.log`"") -WindowStyle Hidden -PassThru
         if (-not $Process.WaitForExit(600000)) { $Process.Kill(); throw 'Installer timed out' }
         if ($Process.ExitCode -notin @(0, 3010)) { throw "Installer failed: $($Process.ExitCode)" }

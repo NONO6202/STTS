@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QLabel, QPushButto
     QLineEdit, QPlainTextEdit, QSlider, QScrollArea, QStackedWidget, QVBoxLayout, QHBoxLayout,
     QButtonGroup, QColorDialog, QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QSizePolicy, QToolTip, QDialog)
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 DATA = Path(os.environ.get('STTS_DATA_DIR', str(Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'STTS')))
-DEFAULTS = {'tts': '기본', 'stt': '기본', 'language': 'ko', 'voice': 'Sohee', 'volume': 1.0,
+DEFAULTS = {'tts': '기본', 'stt': '기본', 'language': 'ko', 'voice': 'Sohee', 'volume': 1.0, 'voice_monitoring': False,
     'caption_alpha': 0.8, 'caption_font': 21, 'caption_color': '#ffffff', 'caption_bg': '#000000',
     'caption_y': 80, 'background': False, 'login': False, 'close': '백그라운드 실행',
     'outside': True, 'shake': True, 'shake_sensitivity': '보통',
@@ -336,6 +336,8 @@ class App:
         self.language_box = QComboBox(); language_row.addWidget(self.language_box, 1); layout.addLayout(language_row)
         self.language_box.currentIndexChanged.connect(self.language_changed)
         self.refresh_voices(); self.scale(layout, '음량', 'volume')
+        self.voice_monitoring = self.check(layout, '목소리 모니터링', 'voice_monitoring')
+        self.voice_monitoring.setToolTip('전송하는 TTS 목소리를 기본 스피커·헤드폰에서도 함께 듣습니다.')
         self.surface_controls(layout, '입력창 모양', 'window')
         self.tts_cancel = button('취소', self.cancel_tts); layout.addWidget(self.tts_cancel, alignment=Qt.AlignmentFlag.AlignRight); self.tts_cancel.hide()
         connection = row(); connection.addWidget(label('가상 마이크', muted=True)); connection.addStretch()
@@ -482,16 +484,18 @@ class App:
             else: model += 'Custom'
         request['model'] = model; widget.clear(); self.hide_composer(); self.tts_busy = True
         self.audio_stop = threading.Event(); token = self.audio_stop; worker = self.tts_worker
+        monitoring = self.config['voice_monitoring']
         self.status.setText('음성 생성 중…'); self.update_busy()
         def run():
             try:
                 import numpy as np
                 from audio import play_cable
                 result = worker.request(request)
+                warning = ''
                 if not token.is_set():
                     self.report('가상 마이크로 보내는 중…')
-                    play_cable(np.frombuffer(base64.b64decode(result['audio']), dtype='<f4'), result['rate'], lambda: self.config['volume'], token)
-                self.post(self.finish_tts, token, '')
+                    warning = play_cable(np.frombuffer(base64.b64decode(result['audio']), dtype='<f4'), result['rate'], lambda: self.config['volume'], token, monitor=monitoring)
+                self.post(self.finish_tts, token, warning or '')
             except Exception as error:
                 if not token.is_set(): self.post(self.finish_tts, token, str(error))
         threading.Thread(target=run, daemon=True).start()
@@ -799,6 +803,7 @@ class App:
         self.update_button.setEnabled(not (self.tts_busy or self.capture or self.voice_busy or self.update_checking or self.update_downloading))
         enabled = self.tts_enabled.isChecked() and not self.tts_busy
         self.boxes['tts'].setEnabled(enabled); self.voice_box.setEnabled(enabled); self.language_box.setEnabled(enabled)
+        self.voice_monitoring.setEnabled(enabled)
         self.boxes['stt'].setEnabled(not self.capture); self.tts_cancel.setVisible(self.tts_busy)
     def start_update_check(self, manual=False):
         if self.update_checking or self.update_downloading: return

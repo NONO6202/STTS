@@ -2,6 +2,7 @@ import contextlib
 import importlib.util
 from pathlib import Path
 import sys
+import threading
 import types
 import unittest
 from unittest.mock import MagicMock, Mock, patch
@@ -136,6 +137,68 @@ class CableDeviceTests(unittest.TestCase):
 
 
 class PlaybackTests(unittest.TestCase):
+    def test_monitoring_uses_one_cable_stream_and_one_resampled_speaker_stream(self):
+        import audio
+        import numpy as np
+        devices = {
+            7: {'index': 7, 'name': 'CABLE Input', 'default_samplerate': 24000, 'max_output_channels': 2, 'hostapi': 0},
+            9: {'index': 9, 'name': 'Headphones', 'default_samplerate': 48000, 'max_output_channels': 2, 'hostapi': 0},
+        }
+        streams = {7: MagicMock(), 9: MagicMock()}
+        samples = np.full(2400, .4, dtype='float32')
+        with patch.object(audio, 'cable_output', return_value=7), \
+             patch.object(audio.sd, 'query_devices', side_effect=lambda index=None, kind=None: devices[9 if kind == 'output' else index]), \
+             patch.object(audio.sd, 'query_hostapis', return_value={'name': 'Windows WASAPI'}), \
+             patch.object(audio.sd, 'WasapiSettings', create=True), \
+             patch.object(audio.sd, 'OutputStream', side_effect=lambda **kwargs: streams[kwargs['device']]) as output:
+            self.assertIsNone(audio.play_cable(samples, 24000, .5, threading.Event(), monitor=True))
+        self.assertCountEqual([call.kwargs['device'] for call in output.call_args_list], [7, 9])
+        for index, length in [(7, 2400), (9, 4800)]:
+            chunks = streams[index].__enter__.return_value.write.call_args_list
+            pcm = np.concatenate([call.args[0] for call in chunks])
+            self.assertEqual(pcm.shape, (length, 2))
+            np.testing.assert_allclose(pcm[100:-100], .2, atol=.001)
+            streams[index].__exit__.assert_called_once()
+        np.testing.assert_array_equal(samples, np.full(2400, .4, dtype='float32'))
+
+    def test_monitor_failure_preserves_transmission_and_never_duplicates_cable_audio(self):
+        import audio
+        import numpy as np
+        cable = {'index': 7, 'name': 'CABLE Input (VB-Audio Virtual Cable)', 'default_samplerate': 24000, 'max_output_channels': 2, 'hostapi': 0}
+        for default in [cable, {**cable, 'index': 9}]:
+            with self.subTest(default=default['index']), \
+                 patch.object(audio, 'cable_output', return_value=7), \
+                 patch.object(audio.sd, 'query_devices', side_effect=lambda index=None, kind=None: default if kind else cable), \
+                 patch.object(audio.sd, 'query_hostapis', return_value={'name': 'Windows WASAPI'}), \
+                 patch.object(audio.sd, 'WasapiSettings', create=True), \
+                 patch.object(audio.sd, 'OutputStream') as output:
+                warning = audio.play_cable(np.full(100, .2, dtype='float32'), 24000, 1., threading.Event(), monitor=True)
+                self.assertIn('TTS는 전송했지만', warning)
+                output.assert_called_once()
+                self.assertEqual(output.call_args.kwargs['device'], 7)
+                output.return_value.__enter__.return_value.write.assert_called_once()
+
+    def test_cancel_stops_both_outputs_and_closes_their_streams(self):
+        import audio
+        import numpy as np
+        stop = threading.Event(); barrier = threading.Barrier(2)
+        streams = {7: MagicMock(), 9: MagicMock()}
+        def write(_chunk):
+            barrier.wait(timeout=3)
+            stop.set()
+        for stream in streams.values(): stream.__enter__.return_value.write.side_effect = write
+        info = {'index': 9, 'name': 'Speakers', 'default_samplerate': 24000, 'max_output_channels': 2, 'hostapi': 0}
+        with patch.object(audio, 'cable_output', return_value=7), \
+             patch.object(audio.sd, 'query_devices', return_value=info), \
+             patch.object(audio.sd, 'query_hostapis', return_value={'name': 'Windows WASAPI'}), \
+             patch.object(audio.sd, 'WasapiSettings', create=True), \
+             patch.object(audio.sd, 'OutputStream', side_effect=lambda **kwargs: streams[kwargs['device']]):
+            self.assertIsNone(audio.play_cable(np.full(12288, .2, dtype='float32'), 24000, 1., stop, monitor=True))
+        for stream in streams.values():
+            stream.__enter__.return_value.write.assert_called_once()
+            stream.__enter__.return_value.abort.assert_called_once()
+            stream.__exit__.assert_called_once()
+
     def test_volume_changes_apply_during_playback_without_mutating_samples(self):
         import audio
         import numpy as np
