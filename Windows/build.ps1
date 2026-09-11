@@ -1,5 +1,7 @@
 ﻿param([switch]$SkipDependencies, [switch]$SkipInstaller, [string]$Compiler = "")
 $ErrorActionPreference = 'Stop'
+$Product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Shared\app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$Version = $Product.version
 Set-Location $PSScriptRoot
 $BundlePath = Join-Path $PSScriptRoot 'build\bundle'
 $Running = Get-Process STTS, STTSWorker, STTSCapture -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($BundlePath + '\', [StringComparison]::OrdinalIgnoreCase) }
@@ -61,7 +63,7 @@ Invoke-Freeze -Arguments @('-m', 'PyInstaller', '--noconfirm', '--clean', '--one
     '--copy-metadata', 'accelerate', '--copy-metadata', 'safetensors', '--exclude-module', 'bitsandbytes', '--exclude-module', 'onnx', '--hidden-import', 'scipy.special._cdflib', '--exclude-module', 'PySide6', 'worker.py')
 Invoke-Freeze -Arguments @('-m', 'PyInstaller', '--noconfirm', '--clean', '--onedir', '--windowed', '--name', 'STTS',
     '--distpath', 'build\frozen', '--workpath', 'build\pyinstaller-gui', '--specpath', 'build',
-    '--add-data', "$PSScriptRoot\..\Support\speech_languages.json;.", '--add-data', "$PSScriptRoot\models.json;.", '--collect-all', 'sounddevice',
+    '--add-data', "$PSScriptRoot\..\Shared\app.json;Shared", '--add-data', "$PSScriptRoot\..\Support\speech_languages.json;.", '--add-data', "$PSScriptRoot\models.json;.", '--collect-all', 'sounddevice',
     '--collect-submodules', 'pycaw', '--exclude-module', 'torch', '--exclude-module', 'transformers', '--exclude-module', 'qwen_tts', 'app.py')
 # Keep each frozen Python runtime separate; merging _internal can overwrite DLLs
 # used by the worker when only the GUI is rebuilt with a different Python version.
@@ -71,7 +73,7 @@ Copy-Item 'build\bundle\STTSGPU.exe' 'build\bundle\Engine\STTSGPU.exe' -Force
 Copy-Item 'build\frozen\STTS\*' 'build\bundle' -Recurse -Force
 Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 @{
-    version = '0.1.3'
+    version = $Version
     gui = (Get-FileHash 'build\bundle\STTS.exe' -Algorithm SHA256).Hash
     worker = (Get-FileHash 'build\bundle\Engine\STTSWorker.exe' -Algorithm SHA256).Hash
     microphone = (Get-FileHash 'build\bundle\STTSMicrophone.exe' -Algorithm SHA256).Hash
@@ -79,5 +81,5 @@ Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 if ($SkipInstaller) { return }
 $ISCC = if ($Compiler) { $Compiler } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
 if (-not (Test-Path $ISCC)) { throw 'Install Inno Setup 6 before building.' }
-Invoke-Checked $ISCC @('installer.iss')
-Get-FileHash '..\dist\STTS-0.1.3-setup-x64.exe' -Algorithm SHA256
+Invoke-Checked $ISCC @("/DAppVersion=$Version", 'installer.iss')
+Get-FileHash "..\dist\STTS-$Version-setup-x64.exe" -Algorithm SHA256

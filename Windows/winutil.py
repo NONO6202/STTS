@@ -66,9 +66,6 @@ def clickthrough(window):
     style = user32.GetWindowLongPtrW(hwnd, -20)
     user32.SetWindowLongPtrW(hwnd, -20, style | 0x20 | 0x08000000 | 0x80)
 
-def foreground(window):
-    user32.SetForegroundWindow(root_handle(window))
-
 def set_login(enabled):
     import winreg
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Run') as key:
@@ -95,9 +92,8 @@ def shortcut_label(value):
 
 class HotKeys:
     """RegisterHotKey event loop: no global keyboard recording/hook."""
-    def __init__(self, callbacks, report):
+    def __init__(self, callbacks):
         self.callbacks = callbacks
-        self.report = report
         self.thread_id = None
         self.errors = []
         self.ready = threading.Event()

@@ -13,14 +13,17 @@ enum Preferences {
 struct TTSPhrases: Codable, Equatable {
     private(set) var entries: [String: String] = [:]
 
-    mutating func save(shortcut: String, phrase: String, replacing original: String? = nil) throws {
+    mutating func save(shortcut: String, phrase: String, replacing original: String? = nil, soundNames: [String] = []) throws {
         let shortcut = shortcut.trimmingCharacters(in: .whitespacesAndNewlines)
         let phrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (1...500).contains(shortcut.count), (1...500).contains(phrase.count) else {
+        guard (1...AppContract.shared.limits.text).contains(shortcut.count), (1...AppContract.shared.limits.text).contains(phrase.count) else {
             throw AppFailure("단축어와 읽을 문장은 각각 1~500자로 입력해 주세요.")
         }
         guard shortcut == original || entries[shortcut] == nil else {
             throw AppFailure("이미 저장된 단축어입니다. 기존 항목을 수정해 주세요.")
+        }
+        guard !soundNames.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == shortcut }) else {
+            throw AppFailure("같은 이름의 사운드가 있습니다. 다른 단축어를 입력해 주세요.")
         }
         if let original { entries.removeValue(forKey: original) }
         entries[shortcut] = phrase
@@ -41,6 +44,12 @@ struct Tint: Codable, Equatable {
         let rgb = NSColor(color).usingColorSpace(.sRGB) ?? .white
         red = rgb.redComponent; green = rgb.greenComponent; blue = rgb.blueComponent
     }
+    init(hex: String) {
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        red = Double((value >> 16) & 255) / 255
+        green = Double((value >> 8) & 255) / 255
+        blue = Double(value & 255) / 255
+    }
     init(_ red: Double, _ green: Double, _ blue: Double) { self.red = red; self.green = green; self.blue = blue }
 }
 
@@ -48,8 +57,8 @@ struct SurfaceStyle: Codable, Equatable {
     var background: Tint
     var foreground: Tint
     var opacity: Double
-    static let window = SurfaceStyle(background: Tint(0.97, 0.97, 0.97), foreground: Tint(0.12, 0.12, 0.12), opacity: 0.95)
-    static let captions = SurfaceStyle(background: Tint(0, 0, 0), foreground: Tint(1, 1, 1), opacity: 0.8)
+    static let window = SurfaceStyle(background: Tint(hex: AppContract.shared.defaults.windowBg), foreground: Tint(hex: AppContract.shared.defaults.windowColor), opacity: AppContract.shared.defaults.windowAlpha)
+    static let captions = SurfaceStyle(background: Tint(hex: AppContract.shared.defaults.captionBg), foreground: Tint(hex: AppContract.shared.defaults.captionColor), opacity: AppContract.shared.defaults.captionAlpha)
 }
 
 struct Shortcut: Codable, Equatable {
@@ -122,16 +131,12 @@ enum SpeechLanguages {
     }
     static func label(_ code: String) -> String {
         if code == "auto" { return "자동 감지" }
-        return (Locale(identifier: "ko").localizedString(forIdentifier: code) ?? code) + " · " + code
+        return (AppContract.shared.languageLabels[code] ?? code) + " · " + code
     }
     static func sorted(_ codes: [String]) -> [String] {
-        codes.sorted { a, b in
-            let rank: [String: Int] = ["auto": 0, "ko": 1, "en": 2, "ja": 3]
-            let aRank = rank[String(a.split(separator: "-")[0])] ?? 4
-            let bRank = rank[String(b.split(separator: "-")[0])] ?? 4
-            if aRank != bRank { return aRank < bRank }
-            return label(a).localizedStandardCompare(label(b)) == .orderedAscending
-        }
+        let known = AppContract.shared.languageOrder.filter { codes.contains($0) }
+        return (codes.contains("auto") ? ["auto"] : []) + known
+            + codes.filter { $0 != "auto" && !known.contains($0) }.sorted()
     }
     static func matching(_ code: String, in options: [String], fallback: String) -> String {
         if options.contains(code) { return code }

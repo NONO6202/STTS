@@ -4,8 +4,10 @@ import UniformTypeIdentifiers
 import AVFoundation
 
 @MainActor final class AppState: ObservableObject {
-    let updates = AppUpdater()
     let runtime = RuntimeSettings()
+    let soundboard = SoundboardLibrary()
+    @Published private(set) var playingSoundID: UUID?
+    @Published var showingSetup = !Preferences.read("setupCompleted", fallback: false)
     @Published private(set) var downloadedModels: [DownloadedModel] = []
     @Published private(set) var managingModels = false
     var modelWorkIsBusy: Bool { speaking || listening || preparing || managingModels || voiceRecordingBusy }
@@ -15,7 +17,7 @@ import AVFoundation
     @Published var voiceRecordingTranscript = ""
     @Published private(set) var voiceTranscribing = false
     var voiceRecordingBusy: Bool { voiceRecordingActive || voiceRecordingPending || voiceTranscribing }
-    @Published var ttsEnabled = Preferences.read("ttsEnabled", fallback: true) {
+    @Published var ttsEnabled = Preferences.read("ttsEnabled", fallback: AppContract.shared.defaults.ttsEnabled) {
         didSet {
             Preferences.save(ttsEnabled, key: "ttsEnabled")
             if ttsEnabled != oldValue {
@@ -28,7 +30,7 @@ import AVFoundation
         didSet {
             guard sttEnabled != oldValue else { return }
             if sttEnabled {
-                guard !managingModels else { sttEnabled = false; return }
+                guard !managingModels, !voiceRecordingBusy else { sttEnabled = false; return }
                 prepareModels(startAfter: true)
                 overlayChanged?()
             } else { stop() }
@@ -46,7 +48,7 @@ import AVFoundation
     @Published var ttsModel = Preferences.read("ttsModel", fallback: TTSModel.gtts) {
         didSet { Preferences.save(ttsModel, key: "ttsModel"); cancelSpeech(); normalizeLanguages() }
     }
-    @Published var ttsVoice = Preferences.read("ttsVoice", fallback: "Sohee") {
+    @Published var ttsVoice = Preferences.read("ttsVoice", fallback: AppContract.shared.defaults.voice) {
         didSet { Preferences.save(ttsVoice, key: "ttsVoice") }
     }
     @Published var ttsPhrases = Preferences.read("ttsPhrases", fallback: TTSPhrases()) {
@@ -58,10 +60,12 @@ import AVFoundation
     @Published var selectedCloneID = Preferences.read("selectedCloneID", fallback: Optional<UUID>.none) {
         didSet { Preferences.save(selectedCloneID, key: "selectedCloneID") }
     }
-    @Published var volume = Preferences.read("volume", fallback: 1.0) {
+    @Published var volume = Preferences.read("volume", fallback: AppContract.shared.defaults.volume) {
         didSet { Preferences.save(volume, key: "volume"); playback.setVolume(volume) }
     }
-    @Published var voiceMonitoring = Preferences.read("voiceMonitoring", fallback: false) {
+    @Published var pitch = Preferences.read("pitch", fallback: 0.0) { didSet { Preferences.save(pitch, key: "pitch") } }
+    @Published var speed = Preferences.read("speed", fallback: 1.0) { didSet { Preferences.save(speed, key: "speed") } }
+    @Published var voiceMonitoring = Preferences.read("voiceMonitoring", fallback: AppContract.shared.defaults.voiceMonitoring) {
         didSet { Preferences.save(voiceMonitoring, key: "voiceMonitoring") }
     }
     @Published var windowStyle = Preferences.read("windowStyle", fallback: SurfaceStyle.window) {
@@ -70,10 +74,13 @@ import AVFoundation
     @Published var captionStyle = Preferences.read("captionStyle", fallback: SurfaceStyle.captions) {
         didSet { Preferences.save(captionStyle, key: "captionStyle"); overlayChanged?() }
     }
-    @Published var closeOnOutsideClick = Preferences.read("closeOnOutsideClick", fallback: true) {
+    @Published var captionFontSize = Preferences.read("captionFontSize", fallback: AppContract.shared.defaults.captionFont) {
+        didSet { Preferences.save(captionFontSize, key: "captionFontSize"); overlayChanged?() }
+    }
+    @Published var closeOnOutsideClick = Preferences.read("closeOnOutsideClick", fallback: AppContract.shared.defaults.outside) {
         didSet { Preferences.save(closeOnOutsideClick, key: "closeOnOutsideClick") }
     }
-    @Published var closeOnMouseShake = Preferences.read("closeOnMouseShake", fallback: true) {
+    @Published var closeOnMouseShake = Preferences.read("closeOnMouseShake", fallback: AppContract.shared.defaults.shake) {
         didSet { Preferences.save(closeOnMouseShake, key: "closeOnMouseShake") }
     }
     @Published var mouseShakeSensitivity = Preferences.read("mouseShakeSensitivity", fallback: MouseShakeSensitivity.normal) {
@@ -82,7 +89,7 @@ import AVFoundation
     @Published private(set) var shortcut = Preferences.read("shortcut", fallback: Shortcut.initial)
     @Published private(set) var captionShortcut = Preferences.read("captionShortcut", fallback: Shortcut.captionInitial)
     let language = "auto"
-    @Published var ttsLanguage = Preferences.read("ttsLanguage", fallback: "ko") { didSet { Preferences.save(ttsLanguage, key: "ttsLanguage") } }
+    @Published var ttsLanguage = Preferences.read("ttsLanguage", fallback: AppContract.shared.defaults.language) { didSet { Preferences.save(ttsLanguage, key: "ttsLanguage") } }
     @Published var microphoneReady = false
     @Published var listening = false
     @Published var preparing = false
@@ -156,8 +163,7 @@ import AVFoundation
     var sttLanguages: [String] { SpeechLanguages.sorted(SpeechLanguages.stt(selectedSTTModel)) }
     var supportsVoiceClone: Bool { [.qwen06, .qwen17].contains(selectedTTSModel) }
     var presetVoices: [String] {
-        if selectedTTSModel == .supertonic3 { return ["F1", "F2", "F3", "F4", "F5", "M1", "M2", "M3", "M4", "M5"] }
-        return supportsVoiceClone ? ["Sohee", "Vivian", "Serena", "Uncle_Fu", "Dylan", "Eric", "Ryan", "Aiden", "Ono_Anna"] : []
+        AppContract.shared.voices[selectedTTSModel == .supertonic3 ? "supertonic3" : (supportsVoiceClone ? "qwen" : "gtts"), default: []]
     }
     var activeClonedVoice: VoiceProfile? { supportsVoiceClone ? clonedVoices.first { $0.id == selectedCloneID } : nil }
     var ttsWorkerModel: String { selectedTTSModel.rawValue + (supportsVoiceClone && activeClonedVoice == nil ? "Custom" : "") }
@@ -169,22 +175,24 @@ import AVFoundation
         }
     }
     func addClonedVoices() -> UUID? {
-        guard !speaking, !voiceRecordingBusy else { return nil }
+        guard !speaking, !listening, !preparing, !voiceRecordingBusy else { return nil }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.wav, .aiff, .mp3, .mpeg4Audio]
         panel.allowsMultipleSelection = true
         panel.message = "음성 추가 · MP3, WAV, M4A, AIFF · 3~30초"
         guard panel.runModal() == .OK else { return nil }
-        var first: UUID?, failures: [String] = []
+        var imported: [VoiceProfile] = [], failures: [String] = []
         for source in panel.urls {
             do {
-                let voice = try VoiceProfile.importAudio(source)
-                clonedVoices.append(voice)
-                if first == nil { first = voice.id }
+                var voice = try VoiceProfile.importAudio(source)
+                let name = voice.name; var number = 2
+                while clonedVoices.contains(where: { $0.name == voice.name }) { voice.name = "\(name) (\(number))"; number += 1 }
+                clonedVoices.append(voice); imported.append(voice)
             } catch { failures.append(source.lastPathComponent + ": " + error.localizedDescription) }
         }
         error = failures.isEmpty ? nil : failures.joined(separator: "\n")
-        return first
+        if !imported.isEmpty { transcribeVoices(imported) }
+        return imported.first?.id
     }
     func deleteClonedVoice(_ id: UUID) {
         guard !speaking, !voiceRecordingBusy, let voice = clonedVoices.first(where: { $0.id == id }) else { return }
@@ -198,12 +206,13 @@ import AVFoundation
         } catch { self.error = error.localizedDescription }
     }
     func startVoiceRecording(completed: @escaping (UUID) -> Void) {
-        guard !speaking, !voiceRecordingBusy else { return }
+        guard !speaking, !listening, !preparing, !voiceRecordingBusy else { return }
         error = nil; voiceRecordingPending = true; voiceRecordingSeconds = 0
         recordedVoiceID = nil
         let token = UUID(); voiceRecordingID = token
         voiceRecordingCompleted = completed
         voiceRecordingTask = Task {
+            guard !Task.isCancelled, voiceRecordingID == token else { return }
             let allowed = await AVCaptureDevice.requestAccess(for: .audio)
             guard !Task.isCancelled, voiceRecordingID == token else { return }
             do {
@@ -217,7 +226,7 @@ import AVFoundation
                     AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false
                 ])
                 voiceRecorder = recorder
-                guard recorder.record(forDuration: 30) else { throw AppFailure("마이크 녹음을 시작하지 못했습니다.") }
+                guard recorder.record(forDuration: AppContract.shared.limits.recordingMax) else { throw AppFailure("마이크 녹음을 시작하지 못했습니다.") }
                 voiceRecordingPending = false; voiceRecordingActive = true
                 let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                     Task { @MainActor in
@@ -250,27 +259,42 @@ import AVFoundation
             else { voiceRecordingCompleted = nil; completed?(voice.id) }
         } catch { voiceRecordingCompleted = nil; self.error = error.localizedDescription }
     }
+    func transcribeVoice(_ id: UUID) {
+        guard !modelWorkIsBusy, let voice = clonedVoices.first(where: { $0.id == id }) else { return }
+        error = nil
+        transcribeVoices([voice])
+    }
     private func transcribeRecordedVoice(_ voice: VoiceProfile, completed: ((UUID) -> Void)?) {
+        transcribeVoices([voice], completed: { completed?(voice.id) })
+    }
+    private func transcribeVoices(_ voices: [VoiceProfile], completed: (() -> Void)? = nil) {
         voiceTranscribing = true
-        let worker = MLXWorker(threads: 2), token = voiceRecordingID
-        voiceTranscriptWorker = worker
+        let worker = MLXWorker(threads: 2), token = UUID()
+        voiceRecordingID = token; voiceTranscriptWorker = worker
         voiceRecordingTask = Task {
-            do {
-                let text = try await Task.detached(priority: .utility) {
-                    _ = try worker.call(["command": "load", "model": "turbo", "root": AppPaths.models.path, "memoryMB": 3072], timeout: 900)
-                    let response = try worker.call(["command": "transcribe_voice", "audioFile": voice.audioURL().path, "language": "auto"], timeout: 180)
-                    return (response["segments"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                }.value
+            var failures: [String] = []
+            for voice in voices {
                 guard !Task.isCancelled, voiceRecordingID == token else { return }
-                guard !text.isEmpty else { throw AppFailure("대본을 인식하지 못했습니다. 직접 입력해 주세요.") }
-                if let index = clonedVoices.firstIndex(where: { $0.id == voice.id }), clonedVoices[index].transcript.isEmpty { clonedVoices[index].transcript = text }
-            } catch {
-                guard !Task.isCancelled, voiceRecordingID == token else { return }
-                self.error = error.localizedDescription
+                do {
+                    let text = try await Task.detached(priority: .utility) {
+                        _ = try worker.call(["command": "load", "model": "turbo", "root": AppPaths.models.path, "memoryMB": 3072], timeout: 900)
+                        let response = try worker.call(["command": "transcribe_voice", "audioFile": voice.audioURL().path, "language": "auto"], timeout: 180)
+                        return (response["segments"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                    }.value
+                    guard !Task.isCancelled, voiceRecordingID == token else { return }
+                    guard !text.isEmpty, text.count <= AppContract.shared.limits.transcript else { throw AppFailure("대본을 인식하지 못했습니다. 직접 입력해 주세요.") }
+                    if let index = clonedVoices.firstIndex(where: { $0.id == voice.id }), clonedVoices[index].transcript == voice.transcript {
+                        clonedVoices[index].transcript = text
+                    }
+                } catch {
+                    guard !Task.isCancelled, voiceRecordingID == token else { return }
+                    failures.append(voice.name + ": " + error.localizedDescription)
+                }
             }
             worker.stop(); voiceTranscriptWorker = nil; voiceRecordingTask = nil
             voiceTranscribing = false; voiceRecordingCompleted = nil
-            completed?(voice.id)
+            if !failures.isEmpty { self.error = failures.joined(separator: "\n") }
+            completed?()
         }
     }
     @discardableResult func cancelVoiceRecording() -> UUID? {
@@ -333,7 +357,7 @@ import AVFoundation
 
     func setShortcut(_ candidate: Shortcut) {
         guard candidate.valid else { error = "⌘·⌃·⌥ 조합 또는 F1~F20 키를 선택해 주세요."; return }
-        guard candidate.keyCode != captionShortcut.keyCode || candidate.modifiers != captionShortcut.modifiers else { error = "자막 단축키와 다른 키를 선택해 주세요."; return }
+        guard captionShortcut.keyCode != candidate.keyCode || captionShortcut.modifiers != candidate.modifiers else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
         do {
             try shortcutChanged?(candidate)
             shortcut = candidate; Preferences.save(candidate, key: "shortcut")
@@ -341,7 +365,7 @@ import AVFoundation
     }
     func setCaptionShortcut(_ candidate: Shortcut) {
         guard candidate.valid else { error = "⌘·⌃·⌥ 조합 또는 F1~F20 키를 선택해 주세요."; return }
-        guard candidate.keyCode != shortcut.keyCode || candidate.modifiers != shortcut.modifiers else { error = "TTS 입력 단축키와 다른 키를 선택해 주세요."; return }
+        guard shortcut.keyCode != candidate.keyCode || shortcut.modifiers != candidate.modifiers else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
         do {
             try captionShortcutChanged?(candidate)
             captionShortcut = candidate; Preferences.save(candidate, key: "captionShortcut")
@@ -399,30 +423,13 @@ import AVFoundation
     private func receive(_ result: [Caption], token: UUID) {
         guard session == token, listening, !result.isEmpty else { return }
         captions.append(contentsOf: result)
-        if captions.count > 100 { captions.removeFirst(captions.count - 100) }
-        visibleCaptions = Array(captions.suffix(2)); status = "Discord 수신 중"
+        if captions.count > AppContract.shared.caption.history { captions.removeFirst(captions.count - AppContract.shared.caption.history) }
+        visibleCaptions = Array(captions.suffix(AppContract.shared.caption.visible)); status = "Discord 수신 중"
         overlayChanged?(); overlayExpiry?.cancel()
         overlayExpiry = Task {
-            try? await Task.sleep(for: .seconds(10))
+            try? await Task.sleep(for: .seconds(AppContract.shared.caption.expirySeconds))
             guard !Task.isCancelled else { return }
             visibleCaptions = []; overlayChanged?()
-        }
-    }
-    func prepareTTS() {
-        guard ttsEnabled, !speaking, !voiceRecordingBusy, !managingModels, selectedTTSModel != .gtts else { return }
-        cancelSpeech(); speaking = true; error = nil; ttsStatus = "모델 확인 중…"
-        let worker = MLXWorker(threads: ttsChoice.threads), token = speechID, model = ttsWorkerModel
-        ttsWorker = worker
-        ttsTask = Task {
-            do {
-                _ = try await Task.detached(priority: .utility) {
-                    try worker.call(["command": "prepare", "model": model, "root": AppPaths.models.path], timeout: 900) { [weak self] message in
-                        Task { @MainActor in if self?.speechID == token { self?.ttsStatus = message } }
-                    }
-                }.value
-                guard speechID == token else { return }
-                worker.stop(); ttsWorker = nil; speaking = false; ttsStatus = "준비 완료"
-            } catch { if speechID == token { cancelSpeech(); self.error = error.localizedDescription } }
         }
     }
     func speak(_ text: String, preview: Bool = false) {
@@ -430,17 +437,27 @@ import AVFoundation
         guard !voiceRecordingBusy else { error = "녹음을 먼저 마쳐 주세요."; return }
         guard !managingModels else { error = "모델 관리가 끝난 뒤 전송해 주세요."; return }
         guard !speaking else { error = "현재 음성 재생이 끝난 뒤 전송해 주세요."; return }
+        let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !preview, ttsPhrases.entries[input] == nil {
+            do {
+                if let clip = try soundboard.clip(forInput: input) {
+                    guard !input.isEmpty, input.count <= AppContract.shared.limits.text else { error = "1~500자 이내로 입력해 주세요."; return }
+                    playSound(clip, from: soundboard.audioURL(clip)); return
+                }
+            } catch { self.error = error.localizedDescription; return }
+        }
         let text = ttsPhrases.expand(text)
-        guard !text.isEmpty, text.count <= 500 else { error = "1~500자 이내로 입력해 주세요."; return }
+        guard !text.isEmpty, text.count <= AppContract.shared.limits.text else { error = "1~500자 이내로 입력해 주세요."; return }
         let clone = activeClonedVoice
         guard clone == nil || clone?.ready == true else {
-            error = "설정 > 보이스 클론에서 선택한 목소리의 이름과 대본을 확인해 주세요."; return
+            error = "하단 보이스 클론에서 선택한 목소리의 이름과 대본을 확인해 주세요."; return
         }
         if !preview && !microphoneReady { connectMicrophone() }
         guard preview || microphoneReady else {
             ttsStatus = "가상 마이크 연결 필요"; return
         }
         error = nil; speaking = true; ttsStatus = "음성 생성 중…"; ttsExpiry?.cancel()
+        let pitch = self.pitch, speed = self.speed
         let token = UUID(), language = ttsLanguage, model = selectedTTSModel, workerModel = ttsWorkerModel, voice = ttsVoice, memory = ttsChoice.ttsMemoryMB
         speechID = token
         let request = SpeechRequest(); speechRequest = model == .gtts ? request : nil
@@ -466,7 +483,7 @@ import AVFoundation
                 if microphoneReady { try microphone.setSending(!preview, monitoring: voiceMonitoring) }
                 else if !preview { throw AppFailure("가상 마이크를 다시 연결해 주세요.") }
                 ttsStatus = preview ? "미리 듣는 중…" : "가상 마이크로 보내는 중…"; playback.setVolume(volume)
-                try playback.play(url, deviceUID: "") { [weak self] in
+                try playback.play(url, deviceUID: "", pitch: pitch, speed: speed) { [weak self] in
                     try? FileManager.default.removeItem(at: url)
                     guard let self, self.speechID == token else { return }
                     self.microphone.disconnect()
@@ -484,7 +501,26 @@ import AVFoundation
             }
         }
     }
+    func playSound(_ clip: SoundboardClip, from url: URL) {
+        guard ttsEnabled else { error = "TTS 사용을 켜 주세요."; return }
+        guard !speaking, !voiceRecordingBusy, !managingModels else { error = "현재 음성 작업이 끝난 뒤 재생해 주세요."; return }
+        cancelSpeech()
+        if !microphoneReady { connectMicrophone() }
+        guard microphoneReady else { error = "가상 마이크를 연결해 주세요."; return }
+        error = nil
+        let token = UUID(); speechID = token
+        do {
+            try microphone.setSending(true, monitoring: voiceMonitoring)
+            speaking = true; playingSoundID = clip.id; ttsStatus = clip.name + " 재생 중…"
+            playback.setVolume(volume)
+            try playback.play(url, deviceUID: "", pitch: pitch, speed: speed) { [weak self] in
+                guard let self, self.speechID == token else { return }
+                self.microphone.disconnect(); self.speaking = false; self.playingSoundID = nil; self.ttsStatus = "대기"
+            }
+        } catch { cancelSpeech(); self.error = error.localizedDescription }
+    }
     func cancelSpeech() {
+        playingSoundID = nil
         speechID = UUID(); speechRequest?.cancel(); speechRequest = nil
         ttsTask?.cancel(); ttsTask = nil; ttsExpiry?.cancel(); ttsExpiry = nil
         ttsWorker?.stop(); ttsWorker = nil; playback.stop(); speaking = false; ttsStatus = "대기"

@@ -4,11 +4,7 @@ enum MouseShakeSensitivity: String, CaseIterable, Identifiable, Codable {
     case low = "낮음", normal = "보통", high = "높음"
     var id: String { rawValue }
     var scale: CGFloat {
-        switch self {
-        case .low: return 2
-        case .normal: return 1
-        case .high: return 0.6
-        }
+        AppContract.shared.shakeSensitivities[rawValue] ?? 1
     }
 }
 

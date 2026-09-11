@@ -25,15 +25,8 @@ struct DownloadedModel: Identifiable, Sendable {
 }
 
 enum ModelStorage {
-    private static let names = [
-        "base": "STT · Whisper Base", "small": "STT · Whisper Small",
-        "turbo": "STT · Whisper Large-v3-Turbo", "large": "STT · Whisper Large-v3", "nemotron": "STT · Nemotron 3.5 ASR 0.6B",
-        "asr06": "STT · Qwen3-ASR 0.6B", "asr17": "STT · Qwen3-ASR 1.7B",
-        "qwen06": "TTS · Qwen3-TTS 0.6B Base", "qwen17": "TTS · Qwen3-TTS 1.7B Base",
-        "supertonic3": "TTS · Supertonic 3",
-        "qwen06Custom": "TTS · Qwen3-TTS 0.6B CustomVoice", "qwen17Custom": "TTS · Qwen3-TTS 1.7B CustomVoice",
-        "chatter": "TTS · Chatterbox (이전 모델)", "chatterV3": "TTS · Chatterbox Multilingual V3", "vox": "TTS · VoxCPM2"
-    ]
+    private static var names: [String: String] { AppContract.shared.modelNames }
+
     private static func name(for id: String) -> String? {
         if id == "Speakers" { return "이전 화자 구분 모델" }
         if id == ModelAsset.vad.file { return "STT 공용 · Silero 음성 감지" }

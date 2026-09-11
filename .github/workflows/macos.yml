@@ -14,7 +14,6 @@ jobs:
       - name: Test speech segmentation and audio defaults
         run: |
           source Support/swift-env.sh
-          # The resident-worker regression launches this interpreter before packaging.
           uv venv .venv --python /opt/homebrew/bin/python3
           swift test -c release --disable-xctest --filter DefaultAudioDevicesTests -j 3
           # These two integration tests need an interactive desktop and Core Audio devices.
@@ -23,10 +22,3 @@ jobs:
         run: bash Support/build-macos.sh
       - name: Test worker protocol
         run: .venv/bin/python -m unittest discover -s Tests -p 'test_mlx_protocol.py'
-      - name: Upload DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: STTS-0.1.2-macos-arm64
-          path: dist/STTS-0.1.2-arm64.dmg
-          compression-level: 0
-          retention-days: 7

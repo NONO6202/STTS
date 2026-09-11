@@ -20,7 +20,6 @@ STTS source is licensed under the repository's MIT LICENSE. Third-party componen
 | Transformers / Tokenizers / Hugging Face Hub | Python runtime metadata | Apache-2.0; included package licenses |
 | Silero VAD v6.2.0 | GGML repo 9ffd54a1e1ee413ddf265af9913beaf518d1639b | MIT, https://github.com/snakers4/silero-vad |
 | FluidAudio | 0.15.6 (Package.resolved) | Apache-2.0, https://github.com/FluidInference/FluidAudio |
-| Sparkle | 2.9.6 (Package.resolved) | MIT/BSD components; https://github.com/sparkle-project/Sparkle; full license included |
 | LS-EEND DIHARD3 CoreML 500ms | 28ce1b1f8ef186729df63b3886fbaae7bc10c4a1 | MIT model card, https://huggingface.co/FluidInference/ls-eend-coreml |
 | fastcluster wrapper | transitive FluidAudio source | BSD-2-Clause; upstream copyright included |
 | NeMo text processing Rust artifact | v0.3.0, transitive FluidAudio target | Apache-2.0; https://github.com/FluidInference/text-processing-rs |

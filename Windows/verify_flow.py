@@ -1,7 +1,6 @@
 """One packaged Windows flow, using generated test speech only."""
 import base64
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys

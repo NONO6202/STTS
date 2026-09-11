@@ -15,6 +15,13 @@ spec.loader.exec_module(app_module)
 
 
 class TTSPhraseTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Keep native extension modules loaded outside patch.dict(sys.modules),
+        # which otherwise unloads new imports and leaves NumPy/SciPy caches inconsistent.
+        for name in ('numpy', 'scipy.signal', 'soundfile'):
+            importlib.import_module(name)
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -23,6 +30,7 @@ class TTSPhraseTests(unittest.TestCase):
         data.start(); self.addCleanup(data.stop)
         self.app = app_module.App.__new__(app_module.App)
         self.app.config = dict(app_module.DEFAULTS)
+        self.app.soundboard = app_module.SoundboardLibrary(self.root / 'Soundboard')
 
     def test_save_rename_delete_and_reload_preserve_unrelated_settings(self):
         app = self.app
@@ -40,10 +48,24 @@ class TTSPhraseTests(unittest.TestCase):
         app.delete_tts_phrase('인사')
         self.assertEqual(json.loads((self.root / 'settings.json').read_text(encoding='utf-8'))['tts_phrases'], {'감사': '감사합니다'})
 
+    def test_cross_names_and_import_in_progress_cannot_overwrite_phrases(self):
+        app = self.app
+        app.save_tts_phrase('인사', '원래 문장')
+        saved = (self.root / 'settings.json').read_bytes()
+        app.soundboard.clips = [{'name': '박수'}]
+        import unicodedata
+        for original in (None, '인사'):
+            with self.assertRaises(ValueError): app.save_tts_phrase(unicodedata.normalize('NFD', ' 박수 '), '변경', original)
+            self.assertEqual((self.root / 'settings.json').read_bytes(), saved)
+        app.voice_busy = True
+        with self.assertRaises(ValueError): app.save_tts_phrase('새이름', '가져오기 중 저장')
+        self.assertEqual((self.root / 'settings.json').read_bytes(), saved)
+
     def test_submission_sends_one_expansion_to_every_tts_backend(self):
         app = self.app
         app.save_tts_phrase('안녕', '안녕하세요')
         app.save_tts_phrase('안녕하세요', '반갑습니다')
+        app.soundboard.clips = [{'id': 'collision', 'name': '안녕'}]
         app.tts_enabled = Mock(isChecked=lambda: True)
         app.voice_busy = False
         app.status = Mock()
@@ -58,7 +80,7 @@ class TTSPhraseTests(unittest.TestCase):
         with patch.dict(sys.modules, {'audio': audio}), patch.object(app_module.threading, 'Thread', side_effect=immediate_thread):
             for tier in app_module.TTS_MODELS:
                 app.config['tts'] = tier
-                for text, expected in [(' 안녕\n', '안녕하세요'), ('안녕 친구야', '안녕 친구야'), ('안녕!', '안녕!')]:
+                for text, expected in [(' 안녕\n', '안녕하세요'), ('안녕 친구야', '안녕 친구야'), ('안녕!', '안녕!'), ('평범한 문장', '평범한 문장')]:
                     app.tts_busy = False
                     widget = Mock(); widget.preedit = False; widget.text.return_value = text
                     app.submit(widget)
@@ -117,6 +139,48 @@ class TTSPhraseTests(unittest.TestCase):
         previous.stop.assert_called_once()
         self.assertIs(app.tts_worker, replacement)
         replacement.stop.assert_not_called()
+
+    def test_transcription_failure_keeps_imported_audio_and_an_editable_profile(self):
+        import numpy as np
+        app = self.app
+        app.voice_root = self.root / 'Voice'; app.voice_root.mkdir()
+        app.model_root = self.root / 'Models'; app.profiles = []
+        app.job = object(); app.report = Mock(); app.refresh_voices = Mock()
+        app.status = Mock(); app.update_busy = Mock(); app.tools = Mock(); app.tools.active = "voice"
+        app.post = lambda callback, *args: callback(*args)
+        worker = Mock(); worker.request.side_effect = RuntimeError('model unavailable')
+        with patch.dict(sys.modules, {'audio': types.SimpleNamespace(Worker=Mock(return_value=worker))}):
+            app.store_voice(('내 목소리', ''), np.full(24000 * 3, .1, dtype='float32'), None)
+        profile, = json.loads((app.voice_root / 'profiles.json').read_text(encoding='utf-8'))
+        self.assertTrue((app.voice_root / (profile['id'] + '.wav')).is_file())
+        self.assertEqual(profile['transcript'], '')
+        app.tools.edit_voice.assert_called_once()
+        self.assertFalse(app.voice_busy)
+        app.status.setText.assert_called_with('model unavailable')
+        worker.stop.assert_called_once()
+
+    def test_cancelled_transcription_cannot_overwrite_the_saved_transcript(self):
+        import base64
+        app = self.app
+        app.tts_busy = app.voice_busy = False; app.capture = None
+        app.voice_root = self.root / 'Voice'; app.model_root = self.root / 'Models'
+        app.job = object(); app.report = Mock(); app.tools = Mock(); app.tools.active = "voice"; app.update_busy = Mock()
+        app.save_profiles = Mock(); pending = []; app.post = lambda fn, *args: pending.append((fn, args))
+        profile = {'id': 'sample', 'name': '목소리', 'transcript': '원래 대본'}
+        worker = Mock()
+        def request(payload):
+            if payload['action'] == 'decode':
+                return {'audio': base64.b64encode(b'\0' * 96).decode()}
+            app.voice_cancel()
+            return {'text': '늦게 도착한 대본'}
+        worker.request.side_effect = request
+        def immediate_thread(*, target, **kwargs): return types.SimpleNamespace(start=target)
+        with patch.dict(sys.modules, {'audio': types.SimpleNamespace(Worker=Mock(return_value=worker))}), patch.object(app_module.threading, 'Thread', side_effect=immediate_thread):
+            app.transcribe_voice(profile)
+        for fn, args in pending: fn(*args)
+        self.assertEqual(profile['transcript'], '원래 대본')
+        self.assertFalse(app.voice_busy)
+        app.save_profiles.assert_not_called()
 
 
 class ComposerRenderingTests(unittest.TestCase):

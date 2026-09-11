@@ -8,7 +8,7 @@ enum WindowCloseAction: String, CaseIterable, Identifiable, Codable {
 }
 
 @MainActor final class RuntimeSettings: ObservableObject {
-    @Published var startInBackground = Preferences.read("startInBackground", fallback: false) {
+    @Published var startInBackground = Preferences.read("startInBackground", fallback: AppContract.shared.defaults.background) {
         didSet { Preferences.save(startInBackground, key: "startInBackground") }
     }
     @Published var closeAction = Preferences.read("windowCloseAction", fallback: WindowCloseAction.background) {

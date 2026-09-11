@@ -12,9 +12,9 @@ enum ResourceLevel: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     static let specifications: [ResourceLevel] = [.minimum, .low, .medium, .high, .maximum]
     static let ttsSpecifications: [ResourceLevel] = [.minimum, .low, .medium, .high]
-    var ttsLabel: String { switch self { case .minimum: return "기본"; case .low: return "낮음"; case .medium: return "중간"; default: return "높음" } }
+    var ttsLabel: String { AppContract.shared.ttsTiers.first { $0.model == TTSModel.localAuto.resolved(self).rawValue }!.title }
     static let sttSpecifications: [ResourceLevel] = [.medium, .low, .high]
-    var sttLabel: String { switch self { case .low: return "낮음"; case .high: return "높음"; default: return "기본" } }
+    var sttLabel: String { AppContract.shared.sttTiers.first { $0.model == STTModel.automatic.resolved(self).rawValue }!.title }
     var resolved: ResourceLevel {
         guard self == .automatic else { return self }
         let ram = ProcessInfo.processInfo.physicalMemory / 1_073_741_824

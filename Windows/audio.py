@@ -13,7 +13,7 @@ import sounddevice as sd
 
 BASE = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
 
-def command(kind):
+def command():
     if getattr(sys, 'frozen', False):
         isolated = BASE / 'Engine' / 'STTSWorker.exe'
         return [str(isolated if isolated.is_file() else BASE / 'STTSWorker.exe')]
@@ -30,7 +30,7 @@ class Worker:
             if self.closed.is_set():
                 raise RuntimeError('음성 작업이 취소되었습니다.')
             if self.process is None or self.process.poll() is not None:
-                process = subprocess.Popen(command('worker'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                process = subprocess.Popen(command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL, text=True, encoding='utf-8', bufsize=1,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
                 self.job.assign(process)

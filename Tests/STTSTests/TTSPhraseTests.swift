@@ -34,6 +34,16 @@ import Testing
         #expect(Preferences.read(key, fallback: TTSPhrases()).entries == ["감사": "감사합니다"])
     }
 
+    @Test func rejectsSoundNameCollisionsWithoutChangingExistingPhrases() throws {
+        var phrases = TTSPhrases()
+        try phrases.save(shortcut: "인사", phrase: "안녕하세요")
+        let saved = phrases
+        for original in [nil, "인사"] as [String?] {
+            #expect(throws: AppFailure.self) { try phrases.save(shortcut: " 박수 ".decomposedStringWithCanonicalMapping, phrase: "변경", replacing: original, soundNames: ["박수"]) }
+            #expect(phrases == saved)
+        }
+    }
+
     @Test func rejectsEmptyAndOversizedValuesWithoutChangingSavedPhrases() throws {
         var phrases = TTSPhrases()
         let maximum = String(repeating: "가", count: 500)
@@ -59,5 +69,12 @@ import Testing
         let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".validation/tts-phrases/settings.png")
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
         try #require(bitmap.representation(using: .png, properties: [:])).write(to: output)
+        let state = AppState(); state.speaking = true; state.ttsStatus = "음성 생성 중…"
+        let main = NSHostingView(rootView: MainView(state: state))
+        main.frame = NSRect(x: 0, y: 0, width: AppContract.shared.window.width, height: AppContract.shared.window.height)
+        main.layoutSubtreeIfNeeded()
+        let statusBitmap = try #require(main.bitmapImageRepForCachingDisplay(in: main.bounds))
+        main.cacheDisplay(in: main.bounds, to: statusBitmap)
+        try #require(statusBitmap.representation(using: .png, properties: [:])).write(to: output.deletingLastPathComponent().appendingPathComponent("status-pill.png"))
     }
 }

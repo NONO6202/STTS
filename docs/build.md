@@ -19,4 +19,6 @@ brew install uv python whisper-cpp ggml libomp
 bash Support/build-macos.sh
 ```
 
-`dist/STTS.app`과 DMG를 생성합니다. 자동 업데이트용 서명 파일은 해당 키가 있는 Mac에서 `Support/prepare-update.py`로 생성합니다.
+`dist/STTS.app`과 DMG를 로컬에 생성합니다. GitHub에는 실행 파일을 업로드하지 않습니다.
+
+GitHub Actions 빌드·검증은 수동 실행하며, 설치 파일과 검증 산출물을 GitHub에 업로드하지 않습니다.

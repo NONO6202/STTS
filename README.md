@@ -2,10 +2,9 @@
 
 Discord 실시간 자막과 텍스트 음성 전송을 위한 데스크톱 앱.
 
-[![Release](https://img.shields.io/github/v/release/NONO6202/STTS)](https://github.com/NONO6202/STTS/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[다운로드](https://github.com/NONO6202/STTS/releases/latest) · [Windows 사용법](Windows/README.md) · [소스 빌드](docs/build.md)
+[Windows 사용법](Windows/README.md) · [소스 빌드](docs/build.md)
 
 <img src="docs/images/windows.png" alt="STTS Windows TTS 설정 화면" width="600">
 
@@ -14,19 +13,23 @@ Discord 실시간 자막과 텍스트 음성 전송을 위한 데스크톱 앱.
 - **실시간 자막** — Discord에서 들리는 음성을 자막으로 표시합니다.
 - **텍스트 음성 전송** — 입력한 문장을 가상 마이크로 보냅니다.
 - **보이스 클론** — 3~30초 음성으로 목소리를 등록합니다.
-- **단축키·단축어** — 입력창 호출과 자주 쓰는 문장을 설정합니다.
+- **단축키·단축어** — 입력창 호출, 자주 쓰는 문장과 입력 자동완성을 설정합니다.
+- **사운드보드** — 저장한 소리를 재생하거나 이름을 입력해 전송합니다. 단축어와 이름이 겹치지 않게 저장합니다.
+- **음성 조절** — 음량·피치·속도를 조절하고 기본값으로 복원합니다.
 - **로컬 모델** — Whisper, Qwen3-TTS, Supertonic을 기기에서 실행합니다.
 
-## 다운로드
+## 배포
 
-| 운영체제 | 요구 사항 | 설치 |
-| --- | --- | --- |
-| Windows | Windows 10 22H2 이상 / 11, x64 | [Windows EXE](https://github.com/NONO6202/STTS/releases/download/v0.1.3/STTS-0.1.3-setup-x64.exe) |
-| macOS | macOS 26+, Apple Silicon | [macOS DMG](https://github.com/NONO6202/STTS/releases/download/v0.1.3/STTS-0.1.3-arm64.dmg) |
+GitHub는 소스 코드 공개용입니다. 실행 파일 배포와 업데이트는 Steam을 통해 제공할 예정입니다. Steam 출시 전에는 [소스 빌드](docs/build.md)를 이용할 수 있습니다.
+
+| 운영체제 | 요구 사항 |
+| --- | --- |
+| Windows | Windows 10 22H2 이상 / 11, x64 |
+| macOS | macOS 26+, Apple Silicon |
 
 Windows 설치 파일에 실행 환경과 VB-CABLE 드라이버가 포함됩니다. 모델은 첫 사용 시 자동으로 다운로드합니다.
 
-macOS는 DMG로 설치하거나 앱에서 업데이트할 수 있습니다.
+앱 내 자체 업데이트 기능은 없습니다. 소스로 빌드한 앱은 최신 소스로 다시 빌드합니다.
 
 ## 시작하기
 

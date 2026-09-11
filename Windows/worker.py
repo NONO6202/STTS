@@ -1,17 +1,13 @@
 """Private JSON pipe worker. No listening ports and no persistent captured audio."""
 import base64
 import contextlib
-import gc
 import hashlib
 import io
 import json
 import os
 from pathlib import Path
-import ssl
 import sys
-import tempfile
 import subprocess
-import urllib.request
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = json.loads((ROOT / 'models.json').read_text(encoding='utf-8'))
@@ -73,7 +69,7 @@ def load_model(key, root):
     device = None
     if key not in CPU_ONLY:
         try: device = directml_device() if key == 'supertonic3' else cuda_device()
-        except (RuntimeError, OSError, ValueError, subprocess.TimeoutExpired) as error:
+        except (RuntimeError, OSError, ValueError, subprocess.TimeoutExpired):
             emit({'event': 'progress', 'message': 'GPU를 확인하지 못해 CPU를 사용합니다.'})
     def create(accelerator):
         if key in ('small', 'turbo', 'large'):
@@ -119,11 +115,11 @@ def handle_request(req):
     import numpy as np
     if req['action'] == 'ping':
         return {'ok': True}
-    if req['action'] == 'decode':
+    if req['action'] in ('decode', 'decode_sound'):
         data = decode_file(req['path'])
-        if not 3 <= len(data) / 24000 <= 30:
+        if req['action'] == 'decode' and not 3 <= len(data) / 24000 <= 30:
             raise ValueError('음성 샘플은 3~30초여야 합니다.')
-        return audio_reply(data, 24000)
+        return audio_reply(data, 24000, pitch=req.get('pitch', 0) if req['action'] == 'decode_sound' else 0, speed=req.get('speed', 1) if req['action'] == 'decode_sound' else 1)
     if req['action'] == 'load':
         load_model(req['model'], req['root'])
         return {'ok': True}
@@ -151,7 +147,7 @@ def handle_request(req):
         data = io.BytesIO()
         gTTS(text, lang=req.get('language', 'ko'), timeout=(10, 30)).write_to_fp(data)
         data.seek(0)
-        return audio_reply(decode_audio(data, sampling_rate=24000), 24000)
+        return audio_reply(decode_audio(data, sampling_rate=24000), 24000, pitch=req.get('pitch', 0), speed=req.get('speed', 1))
     model = load_model(key, req['root'])
     if key == 'supertonic3':
         style = model.get_voice_style(req.get('voice', 'F1'))
@@ -176,7 +172,7 @@ def handle_request(req):
                 raise ValueError('클론 음성과 대본이 필요합니다.')
             waves, sr = model.generate_voice_clone(ref_audio=(ref, ref_sr), ref_text=req['transcript'], **options)
         data = waves[0]
-    return audio_reply(data, sr)
+    return audio_reply(data, sr, pitch=req.get('pitch', 0), speed=req.get('speed', 1))
 
 def handle(req):
     global MODEL, MODEL_KEY
@@ -193,11 +189,19 @@ def handle(req):
     return result
 
 
-def audio_reply(data, sr):
+def audio_reply(data, sr, *, pitch=0, speed=1):
     import numpy as np
     data = np.asarray(data, dtype='<f4').reshape(-1)
     if not data.size or not np.isfinite(data).all() or data.size > sr * 180:
         raise ValueError('음성 생성 결과가 유효하지 않습니다.')
+    if not np.isfinite(pitch) or not -12 <= pitch <= 12 or not np.isfinite(speed) or not .5 <= speed <= 2:
+        raise ValueError('피치 또는 속도 범위가 올바르지 않습니다.')
+    if pitch or speed != 1:
+        import librosa
+        if pitch: data = librosa.effects.pitch_shift(data, sr=int(sr), n_steps=float(pitch))
+        if speed != 1: data = librosa.effects.time_stretch(data, rate=float(speed))
+        data = np.asarray(data, dtype='<f4')
+        if not data.size or not np.isfinite(data).all(): raise ValueError('음성 조절 결과가 유효하지 않습니다.')
     return {'ok': True, 'audio': base64.b64encode(data.tobytes()).decode('ascii'), 'rate': int(sr)}
 
 def main():

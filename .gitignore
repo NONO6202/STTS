@@ -36,7 +36,7 @@ recordings/
 *.gguf
 *.ggml
 
-# Installers and update packages belong in GitHub Releases
+# Locally built installers and update packages
 *.app/
 *.dmg
 *.exe

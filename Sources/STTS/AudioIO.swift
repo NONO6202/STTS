@@ -148,12 +148,13 @@ enum AudioFiles {
     private let engine = AVAudioEngine()
     func prepareOutput() { _ = engine.outputNode }
     private let player = AVAudioPlayerNode()
+    private let timePitch = AVAudioUnitTimePitch()
     private var completion: (() -> Void)?
     private var generation = UUID()
     private var volume: Float = 1
-    init() { engine.attach(player) }
+    init() { engine.attach(player); engine.attach(timePitch) }
     func setVolume(_ value: Double) { volume = Float(min(1, max(0, value))); player.volume = volume }
-    func play(_ url: URL, deviceUID: String, finished: @escaping () -> Void) throws {
+    func play(_ url: URL, deviceUID: String, pitch: Double = 0, speed: Double = 1, finished: @escaping () -> Void) throws {
         stop()
         do {
             guard let unit = engine.outputNode.audioUnit else { throw AppFailure("오디오 출력을 준비할 수 없습니다.") }
@@ -168,7 +169,11 @@ enum AudioFiles {
             guard AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &id, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr else { throw AppFailure("선택한 장치로 음성을 보낼 수 없습니다.") }
         }
         let file = try AVAudioFile(forReading: url)
-        engine.connect(player, to: engine.mainMixerNode, format: file.processingFormat)
+        timePitch.pitch = Float((pitch.isFinite ? min(12, max(-12, pitch)) : 0) * 100)
+        timePitch.rate = Float(speed.isFinite ? min(2, max(0.5, speed)) : 1)
+        timePitch.bypass = timePitch.pitch == 0 && timePitch.rate == 1
+        engine.connect(player, to: timePitch, format: file.processingFormat)
+        engine.connect(timePitch, to: engine.mainMixerNode, format: file.processingFormat)
         player.volume = volume
         completion = finished
         let token = generation

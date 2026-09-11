@@ -1,6 +1,7 @@
 """Package a locally built arm64 app; copy every non-system dylib dependency."""
 from pathlib import Path
 import importlib.metadata
+import json
 import os
 import plistlib
 import shutil
@@ -33,7 +34,13 @@ def main():
         directory.mkdir(parents=True)
     executable = macos / "STTS"
     shutil.copy2(BUILD / "release/STTS", executable)
-    shutil.copy2(ROOT / "Support/Info.plist", APP / "Contents/Info.plist")
+    product = json.loads((ROOT / "Shared/app.json").read_text())
+    with (ROOT / "Support/Info.plist").open("rb") as source:
+        info = plistlib.load(source)
+    info.update(CFBundleShortVersionString=product["version"], CFBundleVersion=str(product["build"]))
+    with (APP / "Contents/Info.plist").open("wb") as output:
+        plistlib.dump(info, output)
+    shutil.copy2(ROOT / "Shared/app.json", resources / "app.json")
     shutil.copy2(ROOT / "Support/speech_languages.json", resources / "speech_languages.json")
     if "--reuse-workers" not in sys.argv:
         run(ROOT / ".venv/bin/python", "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir",
@@ -60,8 +67,6 @@ def main():
     shutil.copytree(BUILD / "python-dist/mlx-worker", resources / "mlx-worker", symlinks=True)
     for bundle in (BUILD / "release").glob("*.bundle"):
         shutil.copytree(bundle, resources / bundle.name)
-    sparkle = BUILD / "artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
-    shutil.copytree(sparkle, frameworks / "Sparkle.framework", symlinks=True)
 
     copied = {}
 
@@ -79,8 +84,6 @@ def main():
             if dep.startswith(str(BREW)):
                 source = Path(dep)
             elif dep.startswith("@rpath/"):
-                if dep.startswith("@rpath/Sparkle.framework/"):
-                    continue
                 name = Path(dep).name
                 candidates = [BREW / "opt/ggml/lib" / name, BREW / "opt/whisper-cpp/lib" / name, BREW / "opt/libomp/lib" / name]
                 source = next((p for p in candidates if p.exists()), None)
@@ -114,7 +117,6 @@ def main():
         "ggml": BREW / "opt/ggml/LICENSE",
         "libomp": BREW / "opt/libomp/LICENSE.TXT",
         "FluidAudio": BUILD / "checkouts/FluidAudio/LICENSE",
-        "Sparkle": BUILD / "artifacts/sparkle/Sparkle/LICENSE",
     }
     for name, path in native.items():
         shutil.copy2(path, licenses / (name + ".txt"))

@@ -1,9 +1,10 @@
 """Input-window gestures use the same thresholds as the macOS app."""
 import math
+from config import CONTRACT
 
 
 def mouse_shaken(points, sensitivity='보통'):
-    scale = {'낮음': 2, '보통': 1, '높음': 0.6}[sensitivity]
+    scale = CONTRACT['shake_sensitivities'][sensitivity]
     direction = None
     reversals = 0
     leg = total = 0.0
@@ -21,3 +22,18 @@ def mouse_shaken(points, sensitivity='보통'):
         leg += distance; total += distance
         if reversals >= 2 and total >= 90 * scale: return True
     return False
+
+
+def completion_candidates(text, phrases, sounds):
+    import unicodedata
+    from collections import Counter
+    normalize = lambda value: unicodedata.normalize('NFC', value)
+    query = normalize(text.strip()).lower()
+    if not query: return []
+    sounds = [normalize(name.strip()) for name in sounds]
+    counts = Counter(sounds)
+    names = {normalize(name) for name in phrases}
+    items = [(name, '단축어') for name in phrases]
+    items += [(name, '사운드') for name in sounds if counts[normalize(name)] == 1 and normalize(name) not in names]
+    if any(normalize(name) == normalize(text.strip()) for name, _ in items): return []
+    return sorted((item for item in items if normalize(item[0]).lower().startswith(query)), key=lambda item: normalize(item[0]))[:5]

@@ -54,5 +54,11 @@ import Testing
         state.sttEnabled = true
         state.sttEnabled = false
         #expect(!state.preparing && !state.listening)
+        state.startVoiceRecording { _ in }
+        #expect(state.voiceRecordingPending)
+        state.toggleCaptions()
+        #expect(!state.sttEnabled && !state.preparing)
+        state.cancelVoiceRecording()
+        #expect(!state.voiceRecordingBusy)
     }
 }
