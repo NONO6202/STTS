@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QLabel, QPushButto
     QLineEdit, QPlainTextEdit, QSlider, QScrollArea, QStackedWidget, QVBoxLayout, QHBoxLayout,
     QButtonGroup, QColorDialog, QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QSizePolicy, QToolTip, QDialog)
 
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 DATA = Path(os.environ.get('STTS_DATA_DIR', str(Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'STTS')))
 DEFAULTS = {'tts': '기본', 'stt': '기본', 'language': 'ko', 'voice': 'Sohee', 'volume': 1.0, 'voice_monitoring': False,
     'caption_alpha': 0.8, 'caption_font': 21, 'caption_color': '#ffffff', 'caption_bg': '#000000',
@@ -239,7 +239,7 @@ class App:
             self.make_tray(); self.start_update_check()
             self.update_timer = QTimer(root); self.update_timer.timeout.connect(self.start_update_check)
             self.update_timer.start(4 * 60 * 60 * 1000)
-            if not self.config.get('setup_completed'): QTimer.singleShot(500, self.check_microphone)
+            if not self.config.get('setup_completed'): QTimer.singleShot(500, self.show_setup)
 
     def page(self):
         area = QScrollArea(); area.setWidgetResizable(True)
@@ -341,14 +341,36 @@ class App:
         self.surface_controls(layout, '입력창 모양', 'window')
         self.tts_cancel = button('취소', self.cancel_tts); layout.addWidget(self.tts_cancel, alignment=Qt.AlignmentFlag.AlignRight); self.tts_cancel.hide()
         connection = row(); connection.addWidget(label('가상 마이크', muted=True)); connection.addStretch()
-        connection.addWidget(button('처음 설정 · 연결 점검', self.check_microphone)); layout.addLayout(connection)
+        connection.addWidget(button('처음 설정', self.show_setup)); layout.addLayout(connection)
+
+    def show_setup(self):
+        dialog = QDialog(self.root); dialog.setObjectName('main'); dialog.setWindowTitle('STTS 처음 설정'); dialog.setFixedWidth(520)
+        layout = column(dialog, 24, 16)
+        title = label('STTS 처음 설정', heading=True); title.setStyleSheet('font-size: 18px; font-weight: 600;'); layout.addWidget(title)
+        for title, text in [
+            ('1. Discord 연결', 'Discord → 설정 → 음성 및 비디오 → 입력 장치에서 STTS를 선택하세요.\n\n출력 장치는 평소 사용하는 헤드셋·스피커를 선택하세요.'),
+            ('2. 문장 보내기', 'STTS에서 TTS 사용을 켜고 입력 단축키로 입력창을 열어 문장을 보내세요.'),
+            ('3. 설정에서 더 보기', '보이스 클론: 음성을 등록해 원하는 목소리로 말할 수 있습니다.\nTTS 단축어: 자주 쓰는 문장을 짧은 단축어로 보낼 수 있습니다.'),
+        ]:
+            section = column(spacing=10); section.addWidget(label(title, heading=True)); section.addWidget(label(text)); layout.addLayout(section)
+        def done():
+            self.config['setup_completed'] = True; self.save(); dialog.accept()
+        line = row(); line.addStretch(); start = button('사용 시작', done)
+        start.setStyleSheet('QPushButton { background: #087cff; color: white; font-weight: 600; padding: 5px 14px; } QPushButton:hover { background: #006ae0; }')
+        start.setDefault(True); line.addWidget(start); layout.addLayout(line)
+        dialog.adjustSize(); dialog.setFixedHeight(dialog.sizeHint().height())
+        if self.smoke:
+            def snapshot():
+                dialog.grab().save(str(DATA / 'ui/setup.png')); dialog.reject()
+            QTimer.singleShot(300, snapshot)
+        dialog.exec()
 
     def check_microphone(self):
         if self.tts_busy or self.voice_busy or self.capture:
             self.status.setText('음성 작업이 끝난 뒤 연결을 확인하세요.'); return
-        dialog = QDialog(self.root); dialog.setObjectName('main'); dialog.setWindowTitle('STTS 처음 설정'); dialog.setMinimumWidth(520)
+        dialog = QDialog(self.root); dialog.setObjectName('main'); dialog.setWindowTitle('가상 마이크 연결 점검'); dialog.setMinimumWidth(520)
         layout = column(dialog, 20)
-        layout.addWidget(label('1. 가상 마이크 준비', heading=True))
+        layout.addWidget(label('가상 마이크 연결 점검', heading=True))
         message = label('장치 확인 중…'); layout.addWidget(message)
         controls = []
         def finished(result):
@@ -385,17 +407,11 @@ class App:
         line.addWidget(button('가상 마이크 설치', install_driver))
         line.addWidget(button('Windows 소리 설정', lambda: os.startfile('ms-settings:sound')))
         line.addWidget(button('마이크 권한', lambda: os.startfile('ms-settings:privacy-microphone'))); layout.addLayout(line)
-        layout.addWidget(label('2. 음성 모델', heading=True))
-        layout.addWidget(label('TTS·STT에서 사양을 선택하면 첫 사용 시 필요한 모델을 자동으로 다운로드하고 검증합니다. INT8 배포 파일을 직접 받으며, 일부 음성 처리 구성요소는 원본 정밀도를 사용합니다. 첫 다운로드에는 인터넷이 필요합니다.'))
-        layout.addWidget(label('3. Discord 연결', heading=True))
-        layout.addWidget(label('Discord → 음성 및 비디오 → 입력 장치: STTS (VB-Audio Virtual Cable)\n스피커는 평소 사용하는 헤드셋·스피커를 선택하세요.\nTTS 사용을 켜고 입력 단축키로 문장을 보냅니다. TTS를 꺼도 공유 드라이버는 유지됩니다.'))
-        def done():
-            self.config['setup_completed'] = True; self.save(); dialog.accept()
-        line = row(); line.addWidget(button('나중에', dialog.reject)); line.addStretch(); line.addWidget(button('사용 시작', done)); layout.addLayout(line)
+        line = row(); line.addStretch(); line.addWidget(button('닫기', dialog.accept)); layout.addLayout(line)
         run_check()
         if self.smoke:
             def snapshot():
-                dialog.grab().save(str(DATA / 'ui/setup.png')); dialog.reject()
+                dialog.grab().save(str(DATA / 'ui/connection.png')); dialog.reject()
             QTimer.singleShot(1000, snapshot)
         dialog.exec()
 
@@ -634,6 +650,7 @@ class App:
         line = row(); line.addWidget(label(f'STTS {VERSION}', muted=True)); line.addStretch()
         line.addWidget(button('업데이트 확인', lambda: self.start_update_check(manual=True)))
         layout.addLayout(line)
+        layout.addWidget(button('가상 마이크 연결 점검', self.check_microphone))
     def settings_run(self):
         from winutil import set_login
         layout = self.clear_settings('실행'); self.check(layout, '로그인 시 자동 실행', 'login', set_login)
@@ -783,7 +800,7 @@ class App:
         header.addWidget(button('폴더 열기', lambda: os.startfile(self.model_root))); header.addWidget(button('새로고침', self.settings_models)); layout.addLayout(header)
         catalog = json.loads((Path(getattr(sys, '_MEIPASS', Path(__file__).parent)) / 'models.json').read_text(encoding='utf-8'))
         current = {f"{key}-{asset.get('variant', asset['revision'][:12])}": asset for key, asset in catalog.items()}
-        layout.addWidget(label('새 다운로드는 INT8 배포본을 사용합니다. 이전 모델은 아래에서 삭제해 공간을 확보할 수 있습니다.', muted=True))
+        layout.addWidget(label('사용하지 않는 모델을 삭제해 저장 공간을 확보할 수 있습니다.', muted=True))
         layout.addWidget(label(str(self.model_root), muted=True)); paths = sorted(p for p in self.model_root.iterdir() if p.is_dir())
         if not paths: layout.addWidget(label('다운로드한 모델이 없습니다.', muted=True))
         names = {'turbo': 'Whisper large-v3-turbo', 'small': 'Whisper small', 'large': 'Whisper large-v3', 'supertonic3': 'Supertonic 3',
@@ -921,7 +938,8 @@ def main():
     qt = QApplication(sys.argv); qt.setStyle('Fusion'); qt.setQuitOnLastWindowClosed(False)
     font = QFont('Segoe UI', 10); font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias); qt.setFont(font)
     root = MainWindow(); app = App(root, smoke=smoke)
-    if smoke or not app.config['background']: root.show()
+    # Installation opens the window even when an existing user prefers hidden startup.
+    if smoke or '--show' in sys.argv or not app.config['background']: app.show()
     if smoke:
         def test_flow():
             try:
@@ -930,7 +948,7 @@ def main():
                 screenshot('tts'); app.select_tab(1); screenshot('stt'); app.select_tab(2)
                 for name, show in [('settings', app.settings_menu), ('input', app.settings_input), ('phrases', app.settings_phrases),
                                    ('voices', app.settings_voices), ('models', app.settings_models), ('runtime', app.settings_run)]: show(); screenshot(name)
-                app.select_tab(0); app.check_microphone()
+                app.select_tab(0); app.show_setup(); app.check_microphone()
                 original_background = app.config['window_bg'], app.config['window_alpha']
                 app.config.update(window_bg='#1464c8', window_alpha=.6)
                 app.show_composer(); assert app.composer.isVisible(); QApplication.processEvents()

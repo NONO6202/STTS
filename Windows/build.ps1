@@ -71,7 +71,7 @@ Copy-Item 'build\bundle\STTSGPU.exe' 'build\bundle\Engine\STTSGPU.exe' -Force
 Copy-Item 'build\frozen\STTS\*' 'build\bundle' -Recurse -Force
 Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 @{
-    version = '0.1.2'
+    version = '0.1.3'
     gui = (Get-FileHash 'build\bundle\STTS.exe' -Algorithm SHA256).Hash
     worker = (Get-FileHash 'build\bundle\Engine\STTSWorker.exe' -Algorithm SHA256).Hash
     microphone = (Get-FileHash 'build\bundle\STTSMicrophone.exe' -Algorithm SHA256).Hash
@@ -80,4 +80,4 @@ if ($SkipInstaller) { return }
 $ISCC = if ($Compiler) { $Compiler } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
 if (-not (Test-Path $ISCC)) { throw 'Install Inno Setup 6 before building.' }
 Invoke-Checked $ISCC @('installer.iss')
-Get-FileHash '..\dist\STTS-0.1.2-setup-x64.exe' -Algorithm SHA256
+Get-FileHash '..\dist\STTS-0.1.3-setup-x64.exe' -Algorithm SHA256

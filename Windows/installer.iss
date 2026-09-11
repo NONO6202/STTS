@@ -4,7 +4,7 @@
 #if !FileExists("build\bundle\STTSMicrophone.exe")
   #error Build the virtual microphone naming helper before compiling Setup.
 #endif
-#define AppVersion "0.1.2"
+#define AppVersion "0.1.3"
 [Setup]
 AppId={{7B7D5075-8B32-4F58-B765-9C15BA062001}
 AppName=STTS
@@ -50,7 +50,7 @@ Name: "{group}\VB-CABLE information and donation"; Filename: "https://www.vb-cab
 Name: "{group}\Uninstall STTS"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\STTS.exe"; Description: "Launch STTS"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: Not DriverInstalledNow
+Filename: "{app}\STTS.exe"; Parameters: "--show"; Flags: nowait skipifsilent runasoriginaluser
 
 [UninstallRun]
 Filename: "{app}\STTSMicrophone.exe"; Parameters: "--restore"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreMicrophoneName"
@@ -76,11 +76,6 @@ begin
   except
     Log('Could not enumerate audio devices.');
   end;
-end;
-
-function DriverInstalledNow: Boolean;
-begin
-  Result := InstalledDriver;
 end;
 
 procedure AudioDefaultsCommand(Command: String);
