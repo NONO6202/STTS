@@ -96,6 +96,17 @@ class SoundboardTests(unittest.TestCase):
             library.import_samples('effect', np.ones(2400), 24000)
         self.assertEqual(library.manifest.read_text(), data)
 
+    def test_malformed_metadata_is_rejected_without_overwriting_manifest(self):
+        self.library.folder.mkdir()
+        valid = {'id': 'a' * 32, 'file': 'a' * 32 + '.wav', 'name': '효과음', 'duration': 1}
+        for bad in ({}, [dict(valid, name=123)], [dict(valid, duration=-1)], [dict(valid, duration=float('inf'))], [dict(valid, duration='1')], [dict(valid, duration=2 ** 2000)], [dict(valid, id=123)], [valid, valid], [valid, dict(valid, id=valid['id'].upper())]):
+            with self.subTest(value=bad):
+                data = json.dumps(bad); self.library.manifest.write_text(data)
+                library = SoundboardLibrary(self.library.folder)
+                self.assertIsNotNone(library.load_error)
+                self.assertEqual(library.clips, [])
+                self.assertEqual(self.library.manifest.read_text(), data)
+
     def test_sound_decode_accepts_short_effects_without_relaxing_voice_clone_limits(self):
         import base64
         spec = importlib.util.spec_from_file_location('soundboard_worker', Path(__file__).parents[1] / 'Windows/worker.py')

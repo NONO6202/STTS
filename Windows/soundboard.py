@@ -15,9 +15,16 @@ class SoundboardLibrary:
         if self.manifest.exists():
             try:
                 clips = json.loads(self.manifest.read_text(encoding='utf-8'))
+                if not isinstance(clips, list): raise ValueError('사운드보드 파일 목록이 올바르지 않습니다.')
+                identifiers = set()
                 for clip in clips:
-                    if clip['file'] != uuid.UUID(clip['id']).hex + '.wav':
+                    if (not isinstance(clip, dict) or not isinstance(clip.get('id'), str)
+                            or not isinstance(clip.get('name'), str) or not clip['name'].strip()
+                            or type(clip.get('duration')) not in (int, float)
+                            or not 0 < clip['duration'] < 2 ** 63
+                            or uuid.UUID(clip['id']).hex in identifiers or clip.get('file') != uuid.UUID(clip['id']).hex + '.wav'):
                         raise ValueError('사운드보드 파일 목록이 올바르지 않습니다.')
+                    identifiers.add(uuid.UUID(clip['id']).hex)
                 self.clips = clips
             except (OSError, ValueError, KeyError, TypeError) as error:
                 self.load_error = str(error)

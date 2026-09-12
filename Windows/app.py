@@ -26,7 +26,6 @@ DATA = data_directory()
 class App:
     def __init__(self, root, smoke=False):
         from winutil import ChildJob
-        from audio import Worker
         self.root, self.smoke = root, smoke; root.owner = self
         self.closing = False; self.config = dict(DEFAULTS)
         DATA.mkdir(parents=True, exist_ok=True)
@@ -44,7 +43,7 @@ class App:
         self.tts_busy = self.voice_busy = False; self.audio_stop = threading.Event()
         self.backends = {}; self.caption_history = []
         self.soundboard = SoundboardLibrary(DATA / "Soundboard"); self.playing_sound = None
-        self.job = ChildJob(); self.tts_worker = Worker(self.job, self.report)
+        self.job = ChildJob(); self.tts_worker = self.make_tts_worker()
         root.setObjectName('main'); root.setWindowTitle('STTS'); root.setFixedSize(CONTRACT['window']['width'], CONTRACT['window']['height']); root.setStyleSheet(STYLE)
         # A second launch must be able to find the window even before it has ever been shown.
         root.winId()
@@ -99,9 +98,17 @@ class App:
 
     def post(self, callback, *args):
         if not self.closing: self.bridge.dispatch.emit(callback, args)
-    def report(self, message):
-        if message.startswith(('TTS · ', 'STT · ')): self.post(self.backend_changed, message)
-        else: self.post(self.status.setText, message)
+    def report(self, message, active=None):
+        def deliver():
+            if active is not None and not active(): return
+            if message.startswith(('TTS · ', 'STT · ')): self.backend_changed(message)
+            else: self.status.setText(message)
+        self.post(deliver)
+    def make_tts_worker(self):
+        from audio import Worker
+        worker = Worker(self.job, lambda message: self.report(message,
+            active=lambda: self.tts_worker is worker and self.tts_busy and not self.audio_stop.is_set()))
+        return worker
     def backend_changed(self, message):
         self.backends[message.split(' · ')[0]] = message
     def save(self): write_json(DATA / 'settings.json', self.config)
@@ -343,7 +350,7 @@ class App:
         self.update_busy()
     def submit(self, widget):
         if getattr(widget, 'preedit', False): return
-        input_text = widget.text().strip()
+        input_text = unicodedata.normalize('NFC', widget.text().strip())
         phrases = self.config.get('tts_phrases', {})
         text = phrases.get(input_text, input_text)
         if not self.tts_enabled.isChecked(): self.status.setText('TTS를 켜세요.'); return
@@ -385,25 +392,23 @@ class App:
                 result = worker.request(request)
                 warning = ''
                 if not token.is_set():
-                    self.report('가상 마이크로 보내는 중…')
+                    self.report('가상 마이크로 보내는 중…', active=lambda: self.audio_stop is token and not token.is_set())
                     warning = play_cable(np.frombuffer(base64.b64decode(result['audio']), dtype='<f4'), result['rate'], lambda: self.config['volume'], token, monitor=monitoring)
                 self.post(self.finish_tts, token, warning or '')
             except Exception as error:
                 if not token.is_set(): self.post(self.finish_tts, token, str(error))
         threading.Thread(target=run, daemon=True).start()
     def finish_tts(self, token, message):
-        if token is not self.audio_stop: return
+        if token is not self.audio_stop or token.is_set(): return
         self.playing_sound = None
         self.tts_busy = False; self.status.setText(message); self.update_busy()
         worker = self.tts_worker
         def release():
             if self.closing or self.tts_busy or self.audio_stop is not token or self.tts_worker is not worker: return
-            from audio import Worker
-            worker.stop(); self.tts_worker = Worker(self.job, self.report)
+            worker.stop(); self.tts_worker = self.make_tts_worker()
         QTimer.singleShot(30000, release)
     def cancel_tts(self):
-        from audio import Worker
-        self.audio_stop.set(); self.tts_worker.stop(); self.tts_worker = Worker(self.job, self.report)
+        self.audio_stop.set(); self.tts_worker.stop(); self.tts_worker = self.make_tts_worker()
         self.playing_sound = None
         self.tts_busy = False; self.status.clear(); self.update_busy()
 
@@ -473,8 +478,10 @@ class App:
         if self.capture: self.stop_stt(); return
         if self.voice_busy: self.stt_enabled.setChecked(False); self.status.setText('목소리 저장이 끝난 뒤 STT를 켜세요.'); return
         from audio import Capture, Worker
-        capture = Capture(self.job, Worker(self.job, self.report), STT_MODELS[self.config['stt']], self.model_root,
-                          lambda text: self.post(self.show_caption, text), self.report, lambda: self.post(self.capture_ended, capture))
+        def progress(message): self.report(message, active=lambda: self.capture is capture)
+        def caption(text): self.post(lambda: self.show_caption(text) if self.capture is capture else None)
+        capture = Capture(self.job, Worker(self.job, progress), STT_MODELS[self.config['stt']], self.model_root,
+                          caption, progress, lambda: self.post(self.capture_ended, capture))
         try: capture.start()
         except Exception as error: capture.stop(); self.stt_enabled.setChecked(False); self.status.setText(str(error)); return
         self.capture = capture; self.stt_enabled.setChecked(True); self.show_caption(''); self.status.setText('STT 준비 중…'); self.update_busy()
@@ -528,8 +535,13 @@ class App:
         if any(key != original and unicodedata.normalize('NFC', key.strip()) == shortcut for key in phrases): raise ValueError('이미 저장된 단축어입니다. 기존 항목을 수정해 주세요.')
         if any(unicodedata.normalize('NFC', clip['name'].strip()) == shortcut for clip in self.soundboard.clips): raise ValueError('같은 이름의 사운드가 있습니다. 다른 단축어를 입력해 주세요.')
         if original is not None: phrases.pop(original, None)
-        phrases[shortcut] = phrase; self.config['tts_phrases'] = phrases; self.save()
-    def delete_tts_phrase(self, shortcut): self.config.get('tts_phrases', {}).pop(shortcut, None); self.save()
+        phrases[shortcut] = phrase
+        write_json(DATA / 'settings.json', dict(self.config, tts_phrases=phrases))
+        self.config['tts_phrases'] = phrases
+    def delete_tts_phrase(self, shortcut):
+        phrases = dict(self.config.get('tts_phrases', {})); phrases.pop(shortcut, None)
+        write_json(DATA / 'settings.json', dict(self.config, tts_phrases=phrases))
+        self.config['tts_phrases'] = phrases
 
     def add_sound_files(self):
         if self.tts_busy or self.voice_busy: self.status.setText('현재 음성 작업이 끝난 뒤 파일을 추가하세요.'); return

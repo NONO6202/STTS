@@ -19,7 +19,10 @@ struct SoundboardClip: Codable, Identifiable, Equatable {
         guard FileManager.default.fileExists(atPath: manifest.path) else { return }
         do {
             let loaded = try JSONDecoder().decode([SoundboardClip].self, from: Data(contentsOf: manifest))
-            guard loaded.allSatisfy({ $0.file == URL(fileURLWithPath: $0.file).lastPathComponent && $0.file.hasPrefix($0.id.uuidString + ".") }) else {
+            guard Set(loaded.map(\.id)).count == loaded.count,
+                  loaded.allSatisfy({ !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      && $0.duration.isFinite && $0.duration > 0 && $0.duration < Double(Int.max)
+                      && $0.file == URL(fileURLWithPath: $0.file).lastPathComponent && $0.file.hasPrefix($0.id.uuidString + ".") }) else {
                 throw AppFailure("사운드보드 파일 목록이 올바르지 않습니다.")
             }
             clips = loaded

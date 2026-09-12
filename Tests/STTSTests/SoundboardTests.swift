@@ -52,6 +52,22 @@ import Testing
         #expect(try Data(contentsOf: source) == original)
     }
 
+    @Test @MainActor func invalidDurationsAndDuplicateIdentifiersPreserveTheManifest() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let id = UUID(), manifest = root.appendingPathComponent("clips.json")
+        let valid = SoundboardClip(id: id, name: "효과음", file: id.uuidString + ".wav", duration: 1)
+        let invalid = [-1.0, 0, Double(Int.max)].map { [SoundboardClip(id: id, name: "효과음", file: valid.file, duration: $0)] } + [[valid, valid]]
+        for clips in invalid {
+            let data = try JSONEncoder().encode(clips); try data.write(to: manifest)
+            let library = SoundboardLibrary(folder: root)
+            #expect(library.loadError != nil)
+            #expect(library.clips.isEmpty)
+            #expect(try Data(contentsOf: manifest) == data)
+        }
+    }
+
     @Test @MainActor func malformedManifestCannotRedirectDeletionOutsideTheLibrary() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -61,6 +61,62 @@ class TTSPhraseTests(unittest.TestCase):
         with self.assertRaises(ValueError): app.save_tts_phrase('새이름', '가져오기 중 저장')
         self.assertEqual((self.root / 'settings.json').read_bytes(), saved)
 
+    def test_failed_phrase_writes_leave_memory_and_disk_unchanged(self):
+        app = self.app
+        app.save_tts_phrase('원본', '원래 문장')
+        original = dict(app.config['tts_phrases'])
+        saved = (self.root / 'settings.json').read_bytes()
+        for action in (lambda: app.save_tts_phrase('새이름', '변경', original='원본'), lambda: app.delete_tts_phrase('원본')):
+            with patch.object(app_module, 'write_json', side_effect=OSError('disk full')):
+                with self.assertRaises(OSError): action()
+            self.assertEqual(app.config['tts_phrases'], original)
+            self.assertEqual((self.root / 'settings.json').read_bytes(), saved)
+
+    def test_cancelled_completion_cannot_replace_a_new_status(self):
+        import threading
+        app = self.app
+        app.audio_stop = threading.Event(); app.audio_stop.set()
+        app.status = Mock(); app.update_busy = Mock(); app.tts_worker = Mock()
+        with patch.object(app_module.QTimer, 'singleShot') as timer:
+            app.finish_tts(app.audio_stop, '취소된 작업의 결과')
+        app.status.setText.assert_not_called(); timer.assert_not_called()
+
+    def test_cancelled_worker_progress_is_discarded_at_ui_delivery(self):
+        import threading
+        app = self.app
+        app.job = object(); app.tts_busy = True; app.audio_stop = threading.Event()
+        app.status = Mock(); pending = []; app.post = lambda fn, *args: pending.append((fn, args))
+        callbacks = []
+        def worker(job, callback): callbacks.append(callback); return Mock()
+        with patch.dict(sys.modules, {'audio': types.SimpleNamespace(Worker=worker)}):
+            app.tts_worker = app.make_tts_worker()
+            callbacks[-1]('이전 다운로드 상태')
+            app.audio_stop.set(); app.tts_busy = False
+            for fn, args in pending: fn(*args)
+            app.status.setText.assert_not_called()
+            pending.clear(); app.audio_stop = threading.Event(); app.tts_busy = True
+            app.tts_worker = app.make_tts_worker()
+            callbacks[0]('이전 작업의 늦은 상태'); callbacks[1]('현재 다운로드 상태')
+            for fn, args in pending: fn(*args)
+        app.status.setText.assert_called_once_with('현재 다운로드 상태')
+
+    def test_old_capture_cannot_deliver_queued_captions_or_progress_after_restart(self):
+        app = self.app
+        app.capture = None; app.voice_busy = False; app.job = object()
+        app.status = Mock(); app.stt_enabled = Mock(); app.show_caption = Mock(); app.update_busy = Mock()
+        app.model_root = self.root / 'Models'; app.caption_timer = Mock(); app.caption = None
+        pending = []; app.post = lambda fn, *args: pending.append((fn, args))
+        captures = []
+        def capture(*args):
+            item = Mock(); item.deliver = args[4]; item.progress = args[5]; captures.append(item); return item
+        with patch.dict(sys.modules, {'audio': types.SimpleNamespace(Capture=capture, Worker=Mock())}):
+            app.toggle_stt(); old = captures[-1]
+            old.deliver('이전 자막'); old.progress('이전 진행률')
+            app.stop_stt(); app.toggle_stt()
+            app.show_caption.reset_mock(); app.status.reset_mock()
+            for fn, args in pending: fn(*args)
+        app.show_caption.assert_not_called(); app.status.setText.assert_not_called()
+
     def test_submission_sends_one_expansion_to_every_tts_backend(self):
         app = self.app
         app.save_tts_phrase('안녕', '안녕하세요')
@@ -80,11 +136,12 @@ class TTSPhraseTests(unittest.TestCase):
         with patch.dict(sys.modules, {'audio': audio}), patch.object(app_module.threading, 'Thread', side_effect=immediate_thread):
             for tier in app_module.TTS_MODELS:
                 app.config['tts'] = tier
-                for text, expected in [(' 안녕\n', '안녕하세요'), ('안녕 친구야', '안녕 친구야'), ('안녕!', '안녕!'), ('평범한 문장', '평범한 문장')]:
-                    app.tts_busy = False
+                for text, expected in [(' 안녕\n', '안녕하세요'), (__import__('unicodedata').normalize('NFD', '안녕'), '안녕하세요'), ('안녕 친구야', '안녕 친구야'), ('안녕!', '안녕!'), ('평범한 문장', '평범한 문장')]:
+                    app.tts_busy = False; app.tts_worker.request.reset_mock()
                     widget = Mock(); widget.preedit = False; widget.text.return_value = text
                     app.submit(widget)
                     audio.cable_output.assert_called_with(refresh=True)
+                    app.tts_worker.request.assert_called_once()
                     self.assertEqual(app.tts_worker.request.call_args.args[0]['text'], expected)
                     widget.clear.assert_called_once_with()
 
@@ -124,7 +181,7 @@ class TTSPhraseTests(unittest.TestCase):
         app = self.app
         app.status = Mock(); app.update_busy = Mock(); app.report = Mock()
         app.backends = {}; app.closing = False; app.job = object()
-        token = app.audio_stop = object()
+        token = app.audio_stop = __import__('threading').Event()
         previous = app.tts_worker = Mock()
         with patch.object(app_module.QTimer, 'singleShot') as schedule:
             app.finish_tts(token, '')
