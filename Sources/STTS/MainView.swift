@@ -53,7 +53,7 @@ struct MainView: View {
     }
 
     private var statusVisible: Bool { state.speaking || state.preparing || state.listening || state.ttsStatus != "대기" }
-    private var bottomInset: CGFloat { (tab == "TTS" ? 60 : 0) + (statusVisible ? 44 : 0) }
+    private var bottomInset: CGFloat { (tab == "TTS" && !Edition.isDemo ? 60 : 0) + (statusVisible ? 44 : 0) }
     private var ttsLocked: Bool { !state.ttsEnabled || state.speaking || state.voiceRecordingBusy }
 
     private var bottomControls: some View {
@@ -73,7 +73,7 @@ struct MainView: View {
                     .glassEffect(.regular, in: Capsule())
                     .padding(.horizontal, 24).padding(.bottom, 8)
             }
-            if tab == "TTS" {
+            if tab == "TTS" && !Edition.isDemo {
                 segments(AppContract.shared.tools.map { ($0.id, $0.title, $0.symbol) }, selected: tool) { id in setTool(tool == id ? nil : id) }
                     .padding(.horizontal, 24).padding(.top, 8).padding(.bottom, 12)
             }
@@ -123,8 +123,10 @@ struct MainView: View {
                               detail: L10n.text(state.microphoneReady ? "STTS 연결됨" : "TTS를 켜면 가상 마이크를 연결합니다."),
                               isOn: $state.ttsEnabled, active: state.ttsEnabled && state.microphoneReady)
                 FormRow(L10n.text("입력 단축키")) { ShortcutRecorder(shortcut: state.shortcut, changed: state.setShortcut).frame(width: 180, height: 26) }
+                FormRow(L10n.text("건너뛰기 단축키")) { HotkeyField(shortcut: state.skipShortcut) { state.setHotkey("skip", $0) } }
                 MenuRow(L10n.text("사양"), selection: $state.ttsChoice) {
-                    ForEach(ResourceLevel.ttsSpecifications) { Text(L10n.text($0.ttsLabel)).tag($0) }
+                    // The demo speaks with the basic and low voices only.
+                    ForEach(ResourceLevel.ttsSpecifications.filter { !Edition.isDemo || [.minimum, .low].contains($0) }) { Text(L10n.text($0.ttsLabel)).tag($0) }
                 }.disabled(ttsLocked)
                 if !state.presetVoices.isEmpty {
                     MenuRow(L10n.text("목소리"), selection: $state.selectedVoice) {
@@ -151,7 +153,7 @@ struct MainView: View {
 
             FormSection(L10n.text("입력창 모양")) {
                 SurfacePreview(text: L10n.text("음성 입력창 미리보기"), style: state.windowStyle)
-                SurfaceControls(style: $state.windowStyle)
+                SurfaceControls(style: $state.windowStyle).modifier(SurfaceLock())
             }
         }
     }
@@ -179,15 +181,19 @@ struct MainView: View {
             }.onAppear(perform: state.refreshLiveMicrophones)
 
             FormSection(L10n.text("마이크 효과")) {
-                SliderRow(L10n.text("피치"), value: $state.liveMicrophonePitch, in: -12...12, step: 1, format: .signed)
+                if Edition.isDemo { DemoNotice(text: "마이크 효과는 정식판에서 사용할 수 있습니다.") }
+                SliderRow(L10n.text("피치"), value: $state.liveMicrophonePitch, in: -12...12, step: 1, format: .signed).disabled(Edition.isDemo)
                 MenuRow(L10n.text("필터"), selection: $state.liveMicrophoneFilter) {
                     ForEach(MicrophoneEffects.filters, id: \.self) { Text(L10n.text($0)).tag($0) }
-                }
+                }.disabled(Edition.isDemo)
                 SliderRow(L10n.text("강도"), value: $state.liveMicrophoneStrength, in: 0...1, format: .percent)
-                    .disabled(state.liveMicrophoneFilter == "기본")
+                    .disabled(state.liveMicrophoneFilter == "기본" || Edition.isDemo)
             } accessory: {
-                SectionAction(title: L10n.text("기본값 복원")) { state.liveMicrophonePitch = 0; state.liveMicrophoneFilter = "기본"; state.liveMicrophoneStrength = 0.65 }
+                if !Edition.isDemo {
+                    SectionAction(title: L10n.text("기본값 복원")) { state.liveMicrophonePitch = 0; state.liveMicrophoneFilter = "기본"; state.liveMicrophoneStrength = 0.65 }
+                }
             }
+            if !Edition.isDemo { MicrophonePresetsSection(state: state) }
         }
     }
 
@@ -196,11 +202,12 @@ struct MainView: View {
             FormSection {
                 FeatureHeader(symbol: "captions.bubble.fill", title: L10n.text("STT 사용"), detail: L10n.message(state.status),
                               isOn: $state.sttEnabled, active: state.sttEnabled)
-                    .disabled(state.managingModels || state.voiceRecordingBusy)
-                FormRow(L10n.text("자막 단축키")) { ShortcutRecorder(shortcut: state.captionShortcut, changed: state.setCaptionShortcut).frame(width: 180, height: 26) }
+                    .disabled(state.managingModels || state.voiceRecordingBusy || Edition.isDemo)
+                if Edition.isDemo { DemoNotice(text: "실시간 자막은 정식판에서 사용할 수 있습니다.") }
+                else { FormRow(L10n.text("자막 단축키")) { ShortcutRecorder(shortcut: state.captionShortcut, changed: state.setCaptionShortcut).frame(width: 180, height: 26) } }
                 MenuRow(L10n.text("사양"), selection: $state.sttChoice) {
                     ForEach(ResourceLevel.sttSpecifications) { Text(L10n.text($0.sttLabel)).tag($0) }
-                }.disabled(state.listening || state.preparing || state.managingModels || state.voiceRecordingBusy)
+                }.disabled(state.listening || state.preparing || state.managingModels || state.voiceRecordingBusy || Edition.isDemo)
             }
             if !state.captions.isEmpty {
                 LazyVStack(alignment: .leading, spacing: 10) {
@@ -210,8 +217,8 @@ struct MainView: View {
             }
             FormSection(L10n.text("자막 모양")) {
                 SurfacePreview(text: L10n.text("자막 미리보기"), style: state.captionStyle, fontSize: state.captionFontSize)
-                SurfaceControls(style: $state.captionStyle)
-                SliderRow(L10n.text("글자 크기"), value: $state.captionFontSize, in: 14...40, step: 1, format: .plain)
+                SurfaceControls(style: $state.captionStyle).modifier(SurfaceLock())
+                SliderRow(L10n.text("글자 크기"), value: $state.captionFontSize, in: 14...40, step: 1, format: .plain).disabled(Edition.isDemo)
             }
         }
     }
@@ -247,5 +254,41 @@ struct SetupView: View {
             }
         }.padding(28).frame(width: 480).fixedSize(horizontal: false, vertical: true)
             .tint(Theme.accent).interactiveDismissDisabled()
+    }
+}
+
+/// Saved pitch/filter/strength combinations, each with an optional global shortcut.
+private struct MicrophonePresetsSection: View {
+    @ObservedObject var state: AppState
+    @State private var name = ""
+    var body: some View {
+        FormSection(L10n.text("효과 프리셋")) {
+            HStack(spacing: 8) {
+                TextField(L10n.text("프리셋 이름"), text: $name).textFieldStyle(.roundedBorder).onSubmit(save)
+                Button(L10n.text("현재 효과 저장"), action: save).controlSize(.small)
+            }.padding(.vertical, 8)
+            ForEach(state.microphonePresets) { preset in
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(preset.name)
+                        Text("\(L10n.text(preset.filter)) · \(L10n.text("피치")) \(String(format: "%+.0f", preset.pitch)) · \(L10n.text("강도")) \(Int((preset.strength * 100).rounded()))%")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    Button(L10n.text("적용")) { state.applyMicrophonePreset(preset.id) }.controlSize(.small)
+                    HotkeyField(shortcut: preset.hotkey, width: 110) { state.setHotkey("preset:" + preset.id.uuidString, $0) }
+                    IconButton(symbol: "trash", title: L10n.text("삭제"), destructive: true) { state.deleteMicrophonePreset(preset.id) }
+                }.padding(.vertical, 6)
+            }
+        }
+    }
+    private func save() { state.saveMicrophonePreset(named: name); if state.error == nil { name = "" } }
+}
+
+/// Explains a feature reserved for the full version, with a link to its store page.
+struct DemoNotice: View {
+    let text: String
+    var body: some View {
+        FormRow(L10n.text(text)) { Button(L10n.text("정식판 보기")) { Edition.openStore() }.controlSize(.small) }
+            .foregroundStyle(.secondary)
     }
 }

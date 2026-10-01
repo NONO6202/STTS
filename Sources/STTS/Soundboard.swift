@@ -45,13 +45,13 @@ struct SoundboardClip: Codable, Identifiable, Equatable {
         try JSONEncoder().encode(items).write(to: manifest, options: .atomic)
     }
 
-    @discardableResult func importAudio(_ source: URL, phraseNames: [String] = []) throws -> SoundboardClip {
+    @discardableResult func importAudio(_ source: URL, name: String? = nil, phraseNames: [String] = []) throws -> SoundboardClip {
         if let loadError { throw AppFailure(loadError) }
-        let name = source.deletingPathExtension().lastPathComponent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = (name ?? source.deletingPathExtension().lastPathComponent).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw AppFailure("사운드 이름이 비어 있습니다.") }
         guard !clips.contains(where: { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) == name }),
               !phraseNames.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == name }) else {
-            throw AppFailure("이미 사용 중인 이름입니다. 파일 이름을 바꾼 뒤 추가해 주세요.")
+            throw AppFailure("이미 사용 중인 이름입니다. 다른 이름을 입력해 주세요.")
         }
         let audio = try AVAudioFile(forReading: source)
         let duration = Double(audio.length) / audio.processingFormat.sampleRate

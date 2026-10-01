@@ -6,6 +6,7 @@ import AVFoundation
 @MainActor final class AppState: ObservableObject {
     let runtime = RuntimeSettings()
     let soundboard = SoundboardLibrary()
+    let achievements = AchievementTracker()
     @Published private(set) var playingSoundID: UUID?
     @Published var showingSetup = !Preferences.read("setupCompleted", fallback: false)
     @Published private(set) var downloadedModels: [DownloadedModel] = []
@@ -21,7 +22,7 @@ import AVFoundation
         didSet {
             Preferences.save(ttsEnabled, key: "ttsEnabled")
             if ttsEnabled != oldValue {
-                if ttsEnabled { connectMicrophone() }
+                if ttsEnabled { connectMicrophone(); warmTTS() }
                 else { liveMicrophoneEnabled = false; cancelSpeech(); closeComposer?(); removeMicrophone() }
             }
         }
@@ -30,7 +31,7 @@ import AVFoundation
         didSet {
             guard sttEnabled != oldValue else { return }
             if sttEnabled {
-                guard !managingModels, !voiceRecordingBusy else { sttEnabled = false; return }
+                guard !Edition.isDemo, !managingModels, !voiceRecordingBusy else { sttEnabled = false; return }
                 prepareModels(startAfter: true)
                 overlayChanged?()
             } else { stop() }
@@ -43,22 +44,22 @@ import AVFoundation
         didSet { Preferences.save(sttModel, key: "sttModel"); normalizeLanguages() }
     }
     @Published var ttsLevel = Preferences.read("ttsLevel", fallback: ResourceLevel.minimum) {
-        didSet { Preferences.save(ttsLevel, key: "ttsLevel"); cancelSpeech(); normalizeLanguages() }
+        didSet { Preferences.save(ttsLevel, key: "ttsLevel"); cancelSpeech(); normalizeLanguages(); warmTTS() }
     }
     @Published var ttsModel = Preferences.read("ttsModel", fallback: TTSModel.gtts) {
-        didSet { Preferences.save(ttsModel, key: "ttsModel"); cancelSpeech(); normalizeLanguages() }
+        didSet { Preferences.save(ttsModel, key: "ttsModel"); cancelSpeech(); normalizeLanguages(); warmTTS() }
     }
     @Published var ttsVoice = Preferences.read("ttsVoice", fallback: AppContract.shared.defaults.voice) {
         didSet { Preferences.save(ttsVoice, key: "ttsVoice") }
     }
     @Published var ttsPhrases = Preferences.read("ttsPhrases", fallback: TTSPhrases()) {
-        didSet { Preferences.save(ttsPhrases, key: "ttsPhrases") }
+        didSet { Preferences.save(ttsPhrases, key: "ttsPhrases"); achievements.level("phrases", ttsPhrases.entries.count) }
     }
     @Published var clonedVoices = Preferences.read("clonedVoices", fallback: [VoiceProfile]()) {
-        didSet { Preferences.save(clonedVoices, key: "clonedVoices") }
+        didSet { Preferences.save(clonedVoices, key: "clonedVoices"); achievements.level("clones", clonedVoices.filter(\.ready).count) }
     }
     @Published var selectedCloneID = Preferences.read("selectedCloneID", fallback: Optional<UUID>.none) {
-        didSet { Preferences.save(selectedCloneID, key: "selectedCloneID") }
+        didSet { Preferences.save(selectedCloneID, key: "selectedCloneID"); if selectedCloneID != oldValue { warmTTS() } }
     }
     @Published var volume = Preferences.read("volume", fallback: AppContract.shared.defaults.volume) {
         didSet { Preferences.save(volume, key: "volume"); playback.setVolume(volume); speechMonitor.setVolume(volume) }
@@ -96,7 +97,9 @@ import AVFoundation
         didSet { Preferences.save(liveMicrophoneStrength, key: "liveMicrophoneStrength"); updateMicrophoneEffects() }
     }
     private func updateMicrophoneEffects() {
+        if Edition.isDemo { liveMicrophone.setEffects(pitch: 0, filter: "기본", strength: 0); return }
         liveMicrophone.setEffects(pitch: liveMicrophonePitch, filter: liveMicrophoneFilter, strength: liveMicrophoneStrength)
+        if liveMicrophoneActive && liveMicrophoneFilter != "기본" { achievements.include("filters", liveMicrophoneFilter) }
     }
     @Published private(set) var liveMicrophoneStatus = "마이크 전송 꺼짐"
     @Published private(set) var liveMicrophoneActive = false
@@ -129,6 +132,16 @@ import AVFoundation
         let next = speechQueue.removeFirst()
         if !speak(next) { speechQueue.removeAll() }
     }
+    @Published private(set) var skipShortcut = Preferences.read("skipShortcut", fallback: Optional<Shortcut>.none)
+    @Published private(set) var soundShortcuts = Preferences.read("soundShortcuts", fallback: [UUID: Shortcut]())
+    @Published var microphonePresets = Preferences.read("microphonePresets", fallback: [MicrophonePreset]()) {
+        didSet { Preferences.save(microphonePresets, key: "microphonePresets") }
+    }
+    /// Recent inputs for ↑/↓ in the input box; kept in memory only.
+    private(set) var sentHistory: [String] = []
+    var hotkeysChanged: (() -> Void)?
+    private var skipRequested: UUID?
+    private var speechGenerating = false
     @Published private(set) var shortcut = Preferences.read("shortcut", fallback: Shortcut.initial)
     @Published private(set) var captionShortcut = Preferences.read("captionShortcut", fallback: Shortcut.captionInitial)
     let language = "auto"
@@ -241,17 +254,22 @@ import AVFoundation
             else if presetVoices.contains(newValue) { ttsVoice = newValue; selectedCloneID = nil }
         }
     }
-    func addClonedVoices() -> UUID? {
+    func addClonedVoices(_ sources: [URL]? = nil, name chosenName: String? = nil) -> UUID? {
         guard !speaking, !listening, !preparing, !voiceRecordingBusy else { return nil }
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.wav, .aiff, .mp3, .mpeg4Audio]
-        panel.allowsMultipleSelection = true
-        panel.message = "음성 추가 · MP3, WAV, M4A, AIFF · 3~30초"
-        guard panel.runModal() == .OK else { return nil }
+        var sources = sources ?? []
+        if sources.isEmpty {
+            let panel = NSOpenPanel()
+            panel.allowedContentTypes = [.wav, .aiff, .mp3, .mpeg4Audio]
+            panel.allowsMultipleSelection = true
+            panel.message = "음성 추가 · MP3, WAV, M4A, AIFF · 3~30초"
+            guard panel.runModal() == .OK else { return nil }
+            sources = panel.urls
+        }
         var imported: [VoiceProfile] = [], failures: [String] = []
-        for source in panel.urls {
+        for source in sources {
             do {
                 var voice = try VoiceProfile.importAudio(source)
+                if sources.count == 1, let chosenName, !chosenName.isEmpty { voice.name = chosenName }
                 let name = voice.name; var number = 2
                 while clonedVoices.contains(where: { $0.name == voice.name }) { voice.name = "\(name) (\(number))"; number += 1 }
                 clonedVoices.append(voice); imported.append(voice)
@@ -492,7 +510,7 @@ import AVFoundation
                 updateMicrophoneEffects()
                 try liveMicrophone.start(deviceUID: uid, volume: liveMicrophoneVolume)
                 liveMicrophoneNeedsReconnect = false
-                liveMicrophoneActive = true
+                liveMicrophoneActive = true; updateMicrophoneEffects()
                 error = nil
                 liveMicrophoneStatus = "● 내 말을 가상 마이크로 보내는 중"
                 liveMicrophoneTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -531,9 +549,95 @@ import AVFoundation
         if let first = presetVoices.first, !presetVoices.contains(ttsVoice) { ttsVoice = first }
     }
 
+    /// Global shortcuts other than the input and caption keys, with their actions.
+    var extraHotkeys: [(slot: String, shortcut: Shortcut, action: () -> Void)] {
+        var items: [(slot: String, shortcut: Shortcut, action: () -> Void)] = []
+        if let skipShortcut { items.append(("skip", skipShortcut, { [weak self] in self?.skipSpeech() })) }
+        if Edition.isDemo { return items }
+        for clip in soundboard.clips { if let key = soundShortcuts[clip.id] { items.append(("sound:" + clip.id.uuidString, key, { [weak self] in self?.hotkeySound(clip.id) })) } }
+        for preset in microphonePresets { if let key = preset.hotkey { items.append(("preset:" + preset.id.uuidString, key, { [weak self] in self?.applyMicrophonePreset(preset.id, toggle: true) })) } }
+        return items
+    }
+    private func shortcutInUse(_ candidate: Shortcut, except slot: String) -> Bool {
+        let all = [("composer", shortcut), ("caption", captionShortcut)] + extraHotkeys.map { ($0.slot, $0.shortcut) }
+        return all.contains { $0.0 != slot && $0.1.matches(candidate) }
+    }
+    func hotkey(_ slot: String) -> Shortcut? { extraHotkeys.first { $0.slot == slot }?.shortcut }
+    func setHotkey(_ slot: String, _ candidate: Shortcut?) {
+        if let candidate {
+            guard candidate.valid else { error = "⌘·⌃·⌥ 조합 또는 F1~F20 키를 선택해 주세요."; return }
+            guard !shortcutInUse(candidate, except: slot) else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
+        }
+        let parts = slot.split(separator: ":", maxSplits: 1).map(String.init)
+        switch parts[0] {
+        case "skip": skipShortcut = candidate; Preferences.save(candidate, key: "skipShortcut")
+        case "sound":
+            guard let id = UUID(uuidString: parts[1]) else { return }
+            soundShortcuts[id] = candidate; Preferences.save(soundShortcuts, key: "soundShortcuts")
+        case "preset":
+            guard let index = microphonePresets.firstIndex(where: { $0.id.uuidString == parts[1] }) else { return }
+            microphonePresets[index].hotkey = candidate
+        default: return
+        }
+        error = nil; hotkeysChanged?()
+        achievements.level("hotkeys", soundShortcuts.count + microphonePresets.filter { $0.hotkey != nil }.count)
+    }
+    func forgetSoundShortcut(_ id: UUID) {
+        guard soundShortcuts.removeValue(forKey: id) != nil else { return }
+        Preferences.save(soundShortcuts, key: "soundShortcuts"); hotkeysChanged?()
+    }
+    func saveMicrophonePreset(named name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { error = "프리셋 이름을 입력해 주세요."; return }
+        guard !microphonePresets.contains(where: { $0.name == name }) else { error = "이미 있는 프리셋 이름입니다."; return }
+        microphonePresets.append(MicrophonePreset(name: name, pitch: liveMicrophonePitch, filter: liveMicrophoneFilter, strength: liveMicrophoneStrength))
+        error = nil
+    }
+    func deleteMicrophonePreset(_ id: UUID) {
+        let hadKey = microphonePresets.first { $0.id == id }?.hotkey != nil
+        microphonePresets.removeAll { $0.id == id }
+        if hadKey { hotkeysChanged?() }
+    }
+    func applyMicrophonePreset(_ id: UUID, toggle: Bool = false) {
+        guard let preset = microphonePresets.first(where: { $0.id == id }) else { return }
+        if toggle, liveMicrophonePitch == preset.pitch, liveMicrophoneFilter == preset.filter, liveMicrophoneStrength == preset.strength {
+            // Pressing an active preset's shortcut again returns to the plain microphone.
+            liveMicrophonePitch = 0; liveMicrophoneFilter = "기본"; liveMicrophoneStrength = 0.65; return
+        }
+        liveMicrophonePitch = preset.pitch; liveMicrophoneFilter = preset.filter; liveMicrophoneStrength = preset.strength
+    }
+    func hotkeySound(_ id: UUID) {
+        guard ttsEnabled, let clip = soundboard.clips.first(where: { $0.id == id }) else { return }
+        if playingSoundID == id { cancelSpeech() }
+        else if speaking { speechQueue.append(clip.name) }
+        else { playSound(clip, from: soundboard.audioURL(clip)) }
+    }
+    func remember(_ input: String) {
+        let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+        sentHistory = Array((sentHistory.filter { $0 != input } + [input]).suffix(50))
+    }
+    /// Stops the sentence or sound being sent and moves on to the next queued one.
+    func skipSpeech() {
+        guard speaking else { return }
+        guard !speechQueue.isEmpty else { cancelSpeech(); return }
+        if speechGenerating {
+            // The worker finishes the sentence it is generating; its audio is then dropped.
+            skipRequested = speechID; speechRequest?.cancel(); return
+        }
+        speechID = UUID(); speechMonitor.stop(); playback.stop()
+        finishSpeechRouting(); speaking = false; playingSoundID = nil; ttsStatus = "대기"
+        advanceSpeechQueue()
+    }
+    private func finishSkippedSpeech(_ token: UUID) -> Bool {
+        guard skipRequested == token, speechID == token else { return false }
+        skipRequested = nil; speechGenerating = false; speechRequest = nil
+        speaking = false; ttsStatus = "대기"; advanceSpeechQueue(); return true
+    }
+
     func setShortcut(_ candidate: Shortcut) {
         guard candidate.valid else { error = "⌘·⌃·⌥ 조합 또는 F1~F20 키를 선택해 주세요."; return }
-        guard captionShortcut.keyCode != candidate.keyCode || captionShortcut.modifiers != candidate.modifiers else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
+        guard !shortcutInUse(candidate, except: "composer") else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
         do {
             try shortcutChanged?(candidate)
             shortcut = candidate; Preferences.save(candidate, key: "shortcut")
@@ -541,7 +645,7 @@ import AVFoundation
     }
     func setCaptionShortcut(_ candidate: Shortcut) {
         guard candidate.valid else { error = "⌘·⌃·⌥ 조합 또는 F1~F20 키를 선택해 주세요."; return }
-        guard shortcut.keyCode != candidate.keyCode || shortcut.modifiers != candidate.modifiers else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
+        guard !shortcutInUse(candidate, except: "caption") else { error = "다른 기능과 겹치지 않는 단축키를 선택해 주세요."; return }
         do {
             try captionShortcutChanged?(candidate)
             captionShortcut = candidate; Preferences.save(candidate, key: "captionShortcut")
@@ -613,7 +717,7 @@ import AVFoundation
         guard !voiceRecordingBusy else { error = "녹음을 먼저 마쳐 주세요."; return false }
         guard !managingModels else { error = "모델 관리가 끝난 뒤 전송해 주세요."; return false }
         let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !preview, ttsPhrases.entries[input] == nil {
+        if !preview, !Edition.isDemo, ttsPhrases.entries[input] == nil {
             do {
                 if let clip = try soundboard.clip(forInput: input) {
                     guard !input.isEmpty, input.count <= AppContract.shared.limits.text else { error = "1~500자 이내로 입력해 주세요."; return false }
@@ -622,7 +726,7 @@ import AVFoundation
                 }
             } catch { self.error = error.localizedDescription; return false }
         }
-        let text = ttsPhrases.expand(text)
+        let text = Edition.isDemo ? text : ttsPhrases.expand(text)
         guard !text.isEmpty, text.count <= AppContract.shared.limits.text else { error = "1~500자 이내로 입력해 주세요."; return false }
         if speaking {
             guard !preview else { error = "현재 음성 재생이 끝난 뒤 전송해 주세요."; return false }
@@ -636,7 +740,7 @@ import AVFoundation
         guard preview || microphoneReady else {
             ttsStatus = "가상 마이크 연결 필요"; return false
         }
-        error = nil; speaking = true; ttsStatus = "음성 생성 중…"; ttsExpiry?.cancel()
+        error = nil; speaking = true; speechGenerating = true; skipRequested = nil; ttsStatus = "음성 생성 중…"; ttsExpiry?.cancel()
         let pitch = self.pitch, speed = self.speed
         let token = UUID(), language = ttsLanguage, model = selectedTTSModel, workerModel = ttsWorkerModel, voice = ttsVoice, memory = ttsChoice.ttsMemoryMB
         speechID = token
@@ -659,7 +763,9 @@ import AVFoundation
                         _ = try worker.call(payload, timeout: 180)
                     }.value
                 } else { url = try await request.synthesize(text: text, language: language); generated = url }
+                if finishSkippedSpeech(token) { try? FileManager.default.removeItem(at: url); return }
                 guard speechID == token, !Task.isCancelled else { try? FileManager.default.removeItem(at: url); return }
+                speechGenerating = false
                 previewPlayback = preview; speechSending = !preview
                 if preview && liveMicrophoneEnabled { configureLiveMicrophone() }
                 if microphoneReady { try updateMicrophoneRouting() }
@@ -669,17 +775,22 @@ import AVFoundation
                 try playback.play(url, deviceUID: "", pitch: pitch, speed: speed) { [weak self] in
                     try? FileManager.default.removeItem(at: url)
                     guard let self, self.speechID == token else { return }
+                    if !preview {
+                        self.achievements.count("tts"); self.achievements.include("languages", language)
+                        if (2..<5).contains(Calendar.current.component(.hour, from: Date())) { self.achievements.level("night", 1) }
+                    }
                     self.finishSpeechRouting()
                     self.speaking = false; self.speechRequest = nil; self.ttsStatus = "대기"
                     if !self.speechQueue.isEmpty { self.advanceSpeechQueue(); return }
                     self.ttsExpiry = Task {
-                        try? await Task.sleep(for: .seconds(30))
+                        try? await Task.sleep(for: .seconds(AppContract.shared.limits.modelIdleSeconds))
                         guard !Task.isCancelled, self.speechID == token else { return }
                         self.ttsWorker?.stop(); self.ttsWorker = nil
                     }
                 }
             } catch {
                 if let generated { try? FileManager.default.removeItem(at: generated) }
+                if finishSkippedSpeech(token) { return }
                 guard speechID == token else { return }
                 cancelSpeech(); self.error = error.localizedDescription
             }
@@ -701,13 +812,33 @@ import AVFoundation
             startSpeechMonitoring(url, pitch: pitch, speed: speed)
             try playback.play(url, deviceUID: "", pitch: pitch, speed: speed) { [weak self] in
                 guard let self, self.speechID == token else { return }
+                self.achievements.count("sounds")
                 self.finishSpeechRouting(); self.speaking = false; self.playingSoundID = nil; self.ttsStatus = "대기"
                 self.advanceSpeechQueue()
             }
         } catch { cancelSpeech(); self.error = error.localizedDescription }
     }
+    /// Loads the selected voice model before the first sentence so speaking does not wait for it.
+    /// Only the packaged app warms, and only models already on disk (the worker never downloads here).
+    func warmTTS() {
+        guard ttsEnabled, !speaking, selectedTTSModel != .gtts,
+              let bundled = Bundle.main.resourceURL?.appendingPathComponent("mlx-worker/mlx-worker"),
+              FileManager.default.isExecutableFile(atPath: bundled.path) else { return }
+        let workerModel = ttsWorkerModel, memory = ttsChoice.ttsMemoryMB, token = speechID
+        let worker = ttsWorker ?? MLXWorker(threads: ttsChoice.threads); ttsWorker = worker
+        ttsExpiry?.cancel()
+        ttsExpiry = Task { [weak self] in
+            _ = try? await Task.detached(priority: .utility) {
+                try worker.call(["command": "preload", "model": workerModel, "root": AppPaths.models.path, "memoryMB": memory], timeout: 900)
+            }.value
+            try? await Task.sleep(for: .seconds(AppContract.shared.limits.modelIdleSeconds))
+            guard let self, !Task.isCancelled, !self.speaking, self.speechID == token, self.ttsWorker === worker else { return }
+            self.ttsWorker?.stop(); self.ttsWorker = nil
+        }
+    }
     func cancelSpeech(clearQueue: Bool = true) {
         if clearQueue { speechQueue.removeAll() }
+        skipRequested = nil; speechGenerating = false
         speechMonitor.stop()
         playingSoundID = nil
         speechID = UUID(); speechRequest?.cancel(); speechRequest = nil

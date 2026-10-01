@@ -85,6 +85,21 @@ class MicrophoneEffectsTests(unittest.TestCase):
         tremolo = self.render(self.tone(1000), effect='트레몰로')
         self.assertLess(np.linalg.norm(tremolo[14950:15050]), np.linalg.norm(tremolo[12000:12100]) * 0.001)
 
+    def test_reverb_chorus_and_underwater(self):
+        x = np.zeros(48000, dtype=np.float32); x[12000] = 0.5
+        tail = self.render(x, effect='리버브')
+        self.assertGreater(np.max(abs(tail[16000:24000])), 0.005)
+        self.assertLess(np.max(abs(tail[40000:])), np.max(abs(tail[16000:24000])))
+        chorus = self.render(x, effect='합창')
+        self.assertGreater(np.max(abs(chorus[12800:13600])), 0.1)
+        rms = lambda y: np.sqrt(np.mean(y[12000:] ** 2))
+        self.assertLess(rms(self.render(self.tone(4000), effect='수중')), rms(self.render(self.tone(300), effect='수중')) * 0.1)
+
+    def test_high_gain_effects_gate_room_noise(self):
+        noise = (np.random.default_rng(1).standard_normal(48000) * 0.0005).astype(np.float32)
+        for effect in ('로봇', '확성기', '디스토션', '8비트'):
+            self.assertLess(np.max(abs(self.render(noise, effect=effect)[12000:])), 0.002, effect)
+
     def test_strength_zero_is_dry_and_full_strength_remains_finite(self):
         for effect in FILTERS[1:]:
             x = self.tone(440)

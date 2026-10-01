@@ -1,13 +1,14 @@
 """Bottom tool drawer and voice, phrase, and sound editors."""
+from pathlib import Path
 import threading
 import time
 from localization import tr, message as localize_message
 
 from PySide6.QtCore import Qt, QTimer, QPoint, QEvent, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QScrollArea, QWidget, QLineEdit, QPlainTextEdit, QComboBox, QLabel
+from PySide6.QtWidgets import QFrame, QScrollArea, QWidget, QLineEdit, QPlainTextEdit, QComboBox, QLabel, QFileDialog
 from config import CONTRACT, voice_ready
-from widgets import label, column, row, button, styled, restyle, section, clear_layout, icon_button, icon_for
+from widgets import label, column, row, button, styled, restyle, section, clear_layout, icon_button, icon_for, DropZone
 from theme import P, ACCENT, on_change
 
 def caption(text):
@@ -55,6 +56,8 @@ class ToolsPanel(QFrame):
         return False
 
     def toggle(self, key):
+        from config import DEMO
+        if DEMO: return
         if self.active == key:
             self.dismiss(); return
         self.animation.stop(); self.active = key
@@ -87,11 +90,12 @@ class ToolsPanel(QFrame):
 
     def show_phrases(self, original=None):
         app = self.app
-        layout = self.clear(); editor = section(layout)
-        line = row(); line.addWidget(label(tr('단축어')), 1)
-        shortcut = QLineEdit(original or ''); shortcut.setAccessibleName(tr('단축어')); shortcut.setFixedWidth(240); line.addWidget(shortcut); editor.addLayout(line)
-        text = column(spacing=8); text.addWidget(caption(tr('읽을 문장')))
-        phrase = QPlainTextEdit(); phrase.setFixedHeight(64); phrase.setAccessibleName(tr('읽을 문장')); text.addWidget(phrase); editor.addLayout(text)
+        layout = self.clear(); layout.addWidget(label(tr('입력창에 단축어를 입력하고 Enter를 누르면 저장한 문장을 읽습니다.'), muted=True))
+        editor = section(layout); fields = column(spacing=6)
+        fields.addWidget(caption(tr('단축어')))
+        shortcut = QLineEdit(original or ''); shortcut.setAccessibleName(tr('단축어')); shortcut.setPlaceholderText(tr('예: ㅎㅇ')); fields.addWidget(shortcut)
+        fields.addSpacing(6); fields.addWidget(caption(tr('읽을 문장')))
+        phrase = QPlainTextEdit(); phrase.setFixedHeight(64); phrase.setAccessibleName(tr('읽을 문장')); phrase.setPlaceholderText(tr('예: 안녕하세요, 반갑습니다!')); fields.addWidget(phrase); editor.addLayout(fields)
         if original is not None: phrase.setPlainText(app.config['tts_phrases'][original])
         error = label(tone='danger'); error.hide()
         def save():
@@ -116,10 +120,44 @@ class ToolsPanel(QFrame):
         layout.addStretch()
 
 
+    def add_form(self, layout, suffixes, title, placeholder, submit, extra=None):
+        """Name field, file picker and drop target shared by the soundboard and voice clone lists."""
+        app = self.app; chosen = []
+        zone = DropZone(suffixes, lambda paths: choose(paths)); layout.addWidget(zone)
+        body = column(zone, 16, 8)
+        drop = row(); icon = QLabel(); on_change(lambda: icon.setPixmap(icon_for('square.and.arrow.down', ACCENT, 18).pixmap(18, 18)))
+        drop.addWidget(icon); hint = label(tr('오디오 파일을 여기로 끌어다 놓거나 선택하세요.'), muted=True); drop.addWidget(hint, 1)
+        drop.addWidget(styled(button(tr('파일 선택'), lambda: pick()), 'small')); body.addLayout(drop)
+        name = QLineEdit(); name.setPlaceholderText(placeholder); name.setAccessibleName(tr('이름')); body.addWidget(name)
+        controls = row(); controls.addStretch()
+        if extra: controls.addWidget(extra)
+        add = symbol_button(tr('추가'), 'plus', lambda: finish(), 'primary'); controls.addWidget(add); body.addLayout(controls)
+        filter_text = tr('음성 파일 (' + ' '.join('*' + suffix for suffix in suffixes) + ')')
+        def choose(paths):
+            chosen[:] = paths
+            if len(paths) == 1:
+                hint.setText(Path(paths[0]).name); name.setEnabled(True)
+                if not name.text().strip(): name.setText(Path(paths[0]).stem)
+                name.setFocus(); name.selectAll()
+            else:
+                hint.setText(tr('파일 {0}개 · 파일 이름으로 추가합니다.', len(paths))); name.clear(); name.setEnabled(False)
+        def pick():
+            paths, _ = QFileDialog.getOpenFileNames(app.root, title, '', filter_text)
+            if paths: choose(paths)
+            return paths
+        def finish():
+            # Without a chosen file, adding first asks for one so a typed name is never lost.
+            if not chosen and not pick(): return
+            submit(list(chosen), name.text().strip() if len(chosen) == 1 else None)
+        name.returnPressed.connect(finish)
+        return add
+
     def show_voices(self):
         app = self.app
-        layout = self.clear(); controls = row()
-        controls.addWidget(symbol_button(tr('파일 추가'), 'plus', app.add_voice_files)); controls.addWidget(symbol_button(tr('마이크 녹음'), 'mic', self.show_recording)); controls.addStretch(); layout.addLayout(controls)
+        layout = self.clear()
+        self.add_form(layout, ('.mp3', '.wav', '.m4a', '.aiff', '.aif'), tr('목소리 추가'), tr('목소리명'), app.add_voice_files,
+                      symbol_button(tr('마이크 녹음'), 'mic', self.show_recording))
+        layout.addWidget(label(tr('3~30초 길이의 깨끗한 음성을 사용하세요. 대본은 자동으로 입력합니다.'), muted=True))
         voices = section(layout)
         if not app.profiles: voices.addWidget(label(tr('저장된 목소리 없음'), muted=True))
         for profile in app.profiles:
@@ -222,8 +260,9 @@ class ToolsPanel(QFrame):
 
     def show_sounds(self):
         app = self.app
-        layout = self.clear(); line = row()
-        add = symbol_button(tr('파일 추가'), 'plus', app.add_sound_files); line.addWidget(add); line.addStretch()
+        layout = self.clear()
+        add = self.add_form(layout, ('.wav', '.mp3', '.m4a', '.aiff', '.aif', '.flac'), tr('사운드 추가'), tr('사운드 이름 (입력창에 입력하면 재생)'), app.add_sound_files)
+        line = row(); line.addWidget(label(tr('사운드마다 단축키를 지정하면 게임 중에도 바로 재생합니다.'), muted=True), 1)
         stop = symbol_button(tr('재생 중지'), 'stop.fill', app.cancel_tts); line.addWidget(stop); layout.addLayout(line)
         self.sound_controls = [(add, 'add', None), (stop, 'stop', None)]
         if app.soundboard.load_error:
@@ -240,6 +279,7 @@ class ToolsPanel(QFrame):
             play.setAccessibleName(localize_message(clip['name'] + ' 재생')); line.addWidget(play)
             details = column(spacing=2); details.addWidget(label(clip['name']))
             seconds = int(clip['duration']); details.addWidget(label(f'{seconds // 60}:{seconds % 60:02d}', muted=True)); line.addLayout(details, 1)
+            line.addWidget(app.shortcut_button('sound:' + clip['id'], width=110, clearable=True))
             remove = icon_button('trash', tr('삭제'), lambda item=clip: app.delete_sound(item), destructive=True); line.addWidget(remove); clips.addLayout(line)
             self.sound_controls.extend([(play, 'play', clip['id']), (remove, 'remove', clip['id'])])
         layout.addStretch()

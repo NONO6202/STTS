@@ -14,13 +14,13 @@ struct TTSShortcutsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
+            Text(L10n.text("입력창에 단축어를 입력하고 Enter를 누르면 저장한 문장을 읽습니다.")).font(.callout).foregroundStyle(.secondary)
             FormSection {
-                FormRow(L10n.text("단축어")) {
-                    TextField("", text: $shortcut).textFieldStyle(.roundedBorder).frame(width: 240).accessibilityLabel(L10n.text("단축어"))
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.text("읽을 문장"))
-                    TextField("", text: $phrase, axis: .vertical)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.text("단축어"))
+                    TextField(L10n.text("예: ㅎㅇ"), text: $shortcut).textFieldStyle(.roundedBorder).accessibilityLabel(L10n.text("단축어"))
+                    Text(L10n.text("읽을 문장")).padding(.top, 6)
+                    TextField(L10n.text("예: 안녕하세요, 반갑습니다!"), text: $phrase, axis: .vertical)
                         .lineLimit(3...5).textFieldStyle(.roundedBorder).accessibilityLabel(L10n.text("읽을 문장"))
                 }.padding(.vertical, 10)
                 HStack {
@@ -113,10 +113,12 @@ struct VoiceLibraryView: View {
                     }.padding(.vertical, 8)
                 }
             } else {
-                HStack(spacing: 8) {
-                    Button { editingID = state.addClonedVoices() } label: { Label(L10n.text("파일 추가"), systemImage: "plus") }.disabled(state.modelWorkIsBusy)
-                    Button { state.voiceRecordingTranscript = ""; recordingPage = true } label: { Label(L10n.text("마이크 녹음"), systemImage: "mic") }.disabled(state.modelWorkIsBusy)
-                }
+                AudioAddForm(types: [.wav, .aiff, .mp3, .mpeg4Audio], placeholder: L10n.text("목소리명")) { files, name in
+                    editingID = state.addClonedVoices(files, name: name)
+                } extra: {
+                    Button { state.voiceRecordingTranscript = ""; recordingPage = true } label: { Label(L10n.text("마이크 녹음"), systemImage: "mic") }
+                }.disabled(state.modelWorkIsBusy)
+                Text(L10n.text("3~30초 길이의 깨끗한 음성을 사용하세요. 대본은 자동으로 입력합니다.")).font(.caption).foregroundStyle(.secondary)
                 FormSection {
                     if state.clonedVoices.isEmpty { Text(L10n.text("저장된 목소리 없음")).foregroundStyle(.secondary) }
                     ForEach(state.clonedVoices) { voice in
@@ -212,9 +214,10 @@ private struct SoundboardView: View {
     @State private var deleting: SoundboardClip?
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            AudioAddForm(types: [.audio], placeholder: L10n.text("사운드 이름 (입력창에 입력하면 재생)"), add: importFiles) { EmptyView() }
+                .disabled(state.speaking || state.voiceRecordingBusy || state.managingModels || library.loadError != nil)
             HStack {
-                Button(action: importFiles) { Label(L10n.text("파일 추가"), systemImage: "plus") }
-                    .disabled(state.speaking || state.voiceRecordingBusy || state.managingModels || library.loadError != nil)
+                Text(L10n.text("사운드마다 단축키를 지정하면 게임 중에도 바로 재생합니다.")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if state.playingSoundID != nil { Button { state.cancelSpeech() } label: { Label(L10n.text("재생 중지"), systemImage: "stop.fill") } }
             }
@@ -242,6 +245,7 @@ private struct SoundboardView: View {
                                 Text(clip.name).lineLimit(2)
                                 Text(String(format: "%d:%02d", Int(clip.duration) / 60, Int(clip.duration) % 60)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
                             }.frame(maxWidth: .infinity, alignment: .leading)
+                            HotkeyField(shortcut: state.soundShortcuts[clip.id], width: 100) { state.setHotkey("sound:" + clip.id.uuidString, $0) }
                             IconButton(symbol: "trash", title: L10n.text("삭제"), destructive: true) { deleting = clip }.disabled(state.speaking)
                         }.padding(.vertical, 8)
                     }
@@ -249,20 +253,87 @@ private struct SoundboardView: View {
             }
         }.alert(L10n.text("사운드를 삭제할까요?"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), presenting: deleting) { clip in
             Button(L10n.text("삭제"), role: .destructive) {
-                do { try library.remove(clip) } catch { state.error = error.localizedDescription }
+                do { try library.remove(clip); state.forgetSoundShortcut(clip.id) } catch { state.error = error.localizedDescription }
                 deleting = nil
             }
             Button(L10n.text("취소"), role: .cancel) { deleting = nil }
         } message: { clip in Text(L10n.text("{0} 등록을 삭제합니다. 가져온 원본 파일은 유지됩니다.", clip.name)) }
     }
-    private func importFiles() {
-        let panel = NSOpenPanel(); panel.allowedContentTypes = [.audio]; panel.allowsMultipleSelection = true
-        guard panel.runModal() == .OK else { return }
+    private func importFiles(_ files: [URL], name: String?) {
         var errors: [String] = []
-        for url in panel.urls {
-            do { try library.importAudio(url, phraseNames: Array(state.ttsPhrases.entries.keys)) }
+        for url in files {
+            do { try library.importAudio(url, name: files.count == 1 ? name : nil, phraseNames: Array(state.ttsPhrases.entries.keys)) }
             catch { errors.append(url.lastPathComponent + ": " + error.localizedDescription) }
         }
         state.error = errors.isEmpty ? nil : errors.joined(separator: "\n")
+    }
+}
+
+/// Name field, file picker and drop target shared by the soundboard and voice clone lists.
+struct AudioAddForm<Extra: View>: View {
+    let types: [UTType]
+    let placeholder: String
+    let add: ([URL], String?) -> Void
+    @ViewBuilder var extra: () -> Extra
+    @State private var files: [URL] = []
+    @State private var name = ""
+    @State private var targeted = false
+
+    private var summary: String {
+        switch files.count {
+        case 0: return L10n.text("오디오 파일을 여기로 끌어다 놓거나 선택하세요.")
+        case 1: return files[0].lastPathComponent
+        default: return L10n.text("파일 {0}개 · 파일 이름으로 추가합니다.", String(files.count))
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.arrow.down").foregroundStyle(Theme.accent)
+                Text(summary).font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Button(L10n.text("파일 선택")) { _ = pick() }.controlSize(.small)
+            }
+            TextField(placeholder, text: $name).textFieldStyle(.roundedBorder).disabled(files.count > 1).onSubmit(finish)
+            HStack(spacing: 8) {
+                Spacer()
+                extra()
+                Button(action: finish) { Label(L10n.text("추가"), systemImage: "plus") }.buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .background(targeted ? Theme.accent.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(targeted ? Theme.accent : Color.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])))
+        .dropDestination(for: URL.self) { urls, _ in
+            let accepted = urls.filter(accepts)
+            if !accepted.isEmpty { choose(accepted) }
+            return !accepted.isEmpty
+        } isTargeted: { targeted = $0 }
+    }
+
+    private func accepts(_ url: URL) -> Bool {
+        guard url.isFileURL, let type = UTType(filenameExtension: url.pathExtension) else { return false }
+        return types.contains { type.conforms(to: $0) }
+    }
+
+    private func choose(_ urls: [URL]) {
+        files = urls
+        if urls.count == 1 { if name.trimmingCharacters(in: .whitespaces).isEmpty { name = urls[0].deletingPathExtension().lastPathComponent } }
+        else { name = "" }
+    }
+
+    private func pick() -> Bool {
+        let panel = NSOpenPanel(); panel.allowedContentTypes = types; panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return false }
+        choose(panel.urls); return true
+    }
+
+    private func finish() {
+        // Without a chosen file, adding first asks for one so a typed name is never lost.
+        if files.isEmpty && !pick() { return }
+        let chosen = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        add(files, files.count == 1 && !chosen.isEmpty ? chosen : nil)
+        files = []; name = ""
     }
 }

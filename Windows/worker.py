@@ -32,16 +32,37 @@ def valid_file(path, entry):
             digest.update(chunk)
     return digest.hexdigest() == (entry.get('sha256') or entry['git_sha1'])
 
+def model_directory(key, root):
+    asset = CATALOG[key]
+    return Path(root) / f"{key}-{asset.get('variant', asset['revision'][:12])}"
+
+def downloaded(key, root):
+    directory = model_directory(key, root)
+    return all((directory / f['path']).is_file() and (directory / f['path']).stat().st_size == f['size'] for f in CATALOG[key]['files'])
+
+def verified(directory, entry, cache):
+    """Hashes a model file once; later loads trust it while its size and mtime are unchanged."""
+    path = directory / entry['path']
+    if not path.is_file(): return False
+    stat = path.stat(); stamp = [stat.st_size, stat.st_mtime_ns, entry.get('sha256') or entry['git_sha1']]
+    if cache.get(entry['path']) == stamp: return True
+    if not valid_file(path, entry): return False
+    cache[entry['path']] = stamp
+    return True
+
 def prepare_model(key, root):
     from downloads import download, finish_parts
     asset = CATALOG[key]
-    directory = Path(root) / f"{key}-{asset.get('variant', asset['revision'][:12])}"
+    directory = model_directory(key, root)
     directory.mkdir(parents=True, exist_ok=True)
+    marker = directory / '.verified.json'
+    try: cache = json.loads(marker.read_text(encoding='utf-8'))
+    except (OSError, ValueError): cache = {}
     total = sum(f['size'] for f in asset['files'])
     completed = 0
     for entry in asset['files']:
         dest = directory / entry['path']
-        if not valid_file(dest, entry):
+        if not verified(directory, entry, cache):
             dest.parent.mkdir(parents=True, exist_ok=True)
             url = f"https://huggingface.co/{entry.get('repo', asset['repo'])}/resolve/{entry.get('revision', asset['revision'])}/{entry.get('remote_path', entry['path'])}"
             temporary, parts, count = download(url, dest, entry['size'],
@@ -54,7 +75,9 @@ def prepare_model(key, root):
                 finish_parts(parts, count)
             finally:
                 Path(temporary).unlink(missing_ok=True)
+            stat = dest.stat(); cache[entry['path']] = [stat.st_size, stat.st_mtime_ns, entry.get('sha256') or entry['git_sha1']]
         completed += entry['size']
+    with contextlib.suppress(OSError): marker.write_text(json.dumps(cache), encoding='utf-8')
     return directory
 
 def load_model(key, root):
@@ -123,6 +146,11 @@ def handle_request(req):
     if req['action'] == 'load':
         load_model(req['model'], req['root'])
         return {'ok': True}
+    if req['action'] == 'preload':
+        # Warm only models that are already on disk; never start a download in the background.
+        if req['model'] not in CATALOG or not downloaded(req['model'], req['root']): return {'ok': True, 'loaded': False}
+        load_model(req['model'], req['root'])
+        return {'ok': True, 'loaded': True}
     if req['action'] == 'stt':
         data = np.frombuffer(base64.b64decode(req['audio']), dtype='<f4')
         if data.size > 16000 * 30 or not np.isfinite(data).all():

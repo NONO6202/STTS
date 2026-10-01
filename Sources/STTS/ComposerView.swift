@@ -27,21 +27,37 @@ struct ComposerView: View {
     }
     @State private var composing = false
     @State private var selected = 0
+    @State private var recallIndex: Int?
+    @State private var recallDraft = ""
+    @State private var recalledText: String?
     let resize: (Int) -> Void
     let close: () -> Void
     private var suggestions: [ComposerSuggestion] {
-        composing ? [] : ComposerSuggestion.matches(text, phrases: Array(state.ttsPhrases.entries.keys), sounds: library.clips.map(\.name))
+        composing || recallIndex != nil || Edition.isDemo ? [] : ComposerSuggestion.matches(text, phrases: Array(state.ttsPhrases.entries.keys), sounds: library.clips.map(\.name))
     }
     private func accept(_ name: String) { text = name; selected = 0 }
     private func submit() {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= AppContract.shared.limits.text else { return }
-        if state.speak(text) { text = ""; close() } else { NSSound.beep() }
+        if state.speak(text) { state.remember(text); text = ""; recallIndex = nil; close() } else { NSSound.beep() }
+    }
+    /// ↑/↓ walk through recently sent inputs, then back to the unsent draft.
+    private func recall(_ direction: Int) -> Bool {
+        let history = state.sentHistory
+        guard !history.isEmpty else { return false }
+        let current = recallIndex ?? history.count
+        if recallIndex == nil { recallDraft = text }
+        let next = max(0, min(history.count, current + direction))
+        recallIndex = next == history.count ? nil : next
+        text = next == history.count ? recallDraft : history[next]; recalledText = text
+        return true
     }
     var body: some View {
         VStack(spacing: 0) {
             ComposingTextField(text: $state.composerDraft, composing: $composing, foreground: state.windowStyle.foreground, navigate: { direction in
-                guard !suggestions.isEmpty else { return false }
-                selected = (selected + direction + suggestions.count) % suggestions.count; return true
+                guard recallIndex != nil || suggestions.isEmpty else {
+                    selected = (selected + direction + suggestions.count) % suggestions.count; return true
+                }
+                return recall(direction)
             }, complete: {
                 guard !suggestions.isEmpty else { return nil }
                 let name = suggestions[min(selected, suggestions.count - 1)].name; accept(name); return name
@@ -62,7 +78,11 @@ struct ComposerView: View {
             .background(state.windowStyle.background.color.opacity(state.windowStyle.opacity))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(state.error == nil ? Color.primary.opacity(0.08) : Color.red, lineWidth: state.error == nil ? 0.5 : 1))
-            .onChange(of: text) { _, _ in selected = 0 }
+            .onChange(of: text) { _, value in
+                selected = 0
+                // Typing ends history browsing so suggestions return.
+                if value != recalledText { recallIndex = nil; recalledText = nil }
+            }
             .onChange(of: suggestions.count) { _, count in resize(count) }
             .help(L10n.message(state.error ?? "Tab 완성 · Enter 전송 · Esc 닫기"))
     }

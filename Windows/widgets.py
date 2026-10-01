@@ -97,6 +97,8 @@ def icon_for(name, color=None, size=24):
     elif name == 'chevron.left': lines((14.5, 5), (8, 12), (14.5, 19))
     elif name == 'chevron.right': lines((9.5, 5), (16, 12), (9.5, 19))
     elif name == 'plus': painter.drawLine(QPointF(12, 5), QPointF(12, 19)); painter.drawLine(QPointF(5, 12), QPointF(19, 12))
+    elif name == 'square.and.arrow.down':
+        lines((12, 3), (12, 14)); lines((7.5, 9.5), (12, 14), (16.5, 9.5)); lines((4, 13), (4, 20), (20, 20), (20, 13))
     elif name == 'xmark':
         pen.setWidthF(2.2); painter.setPen(pen); painter.drawLine(QPointF(7, 7), QPointF(17, 17)); painter.drawLine(QPointF(17, 7), QPointF(7, 17))
     elif name == 'person.wave.2':
@@ -150,6 +152,7 @@ class ComposerEdit(QLineEdit):
     submitted = Signal()
     dismissed = Signal()
     navigated = Signal(int)
+    recalled = Signal(int)
     completed = Signal()
     compositionChanged = Signal()
     def __init__(self):
@@ -161,8 +164,9 @@ class ComposerEdit(QLineEdit):
     def inputMethodEvent(self, event):
         self.preedit = bool(event.preeditString()); super().inputMethodEvent(event); self.compositionChanged.emit()
     def keyPressEvent(self, event):
-        if not self.preedit and self.has_completions and event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
-            self.navigated.emit(-1 if event.key() == Qt.Key.Key_Up else 1); return
+        if not self.preedit and event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
+            step = -1 if event.key() == Qt.Key.Key_Up else 1
+            (self.navigated if self.has_completions else self.recalled).emit(step); return
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             if self.preedit: super().keyPressEvent(event)
             else: self.submitted.emit()
@@ -361,6 +365,29 @@ class Section(QWidget):
         return self.addWidget(widget)
 
     def addSpacing(self, size): pass
+
+
+class DropZone(QFrame):
+    """A dashed card that accepts files with the given suffixes dragged in from Explorer."""
+    def __init__(self, suffixes, dropped):
+        super().__init__(); self.setObjectName('dropZone'); self.setAcceptDrops(True)
+        self.suffixes, self.dropped = suffixes, dropped
+
+    def files(self, event):
+        from pathlib import Path
+        return [url.toLocalFile() for url in event.mimeData().urls() if url.isLocalFile() and Path(url.toLocalFile()).suffix.lower() in self.suffixes]
+
+    def dragEnterEvent(self, event):
+        if self.files(event): event.acceptProposedAction(); restyle(self, active=True)
+
+    def dragMoveEvent(self, event):
+        if self.files(event): event.acceptProposedAction()
+
+    def dragLeaveEvent(self, event): restyle(self, active=False)
+
+    def dropEvent(self, event):
+        restyle(self, active=False); files = self.files(event)
+        if files: event.acceptProposedAction(); self.dropped(files)
 
 
 def section(layout, title=None):

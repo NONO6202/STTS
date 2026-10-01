@@ -14,7 +14,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BRANCH="${STEAM_BRANCH:-}"
 WINDOWS="${STEAM_WINDOWS_CONTENT:-$ROOT/Windows/build/steam}"
 MAC_APP="${STEAM_MAC_APP:-$ROOT/dist/STTS.app}"
-OUT="$ROOT/.build/steam"
+# SteamCMD resolves content roots from the build script's folder, so pass absolute paths.
+WINDOWS="$(cd "$WINDOWS" && pwd)"; MAC_APP="$(cd "$MAC_APP" && pwd)"
+OUT="$ROOT/.build/steam/$STEAM_APP_ID"  # one folder per app, so the full and demo uploads never share files
 
 command -v steamcmd >/dev/null || { echo "SteamCMD is missing: brew install --cask steamcmd" >&2; exit 1; }
 [[ -f "$WINDOWS/STTS.exe" && -f "$WINDOWS/STTSRuntime.exe" && -f "$WINDOWS/Engine/STTSWorker.exe" && -f "$WINDOWS/VB-CABLE/VBCABLE_Setup_x64.exe" ]] \

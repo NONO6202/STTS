@@ -2,6 +2,12 @@ import Foundation
 
 enum L10n {
     static let supported = ["ko", "en", "ja", "zh-Hans", "es", "fr", "de", "pt"]
+    static let nativeNames = ["ko": "한국어", "en": "English", "ja": "日本語", "zh-Hans": "简体中文", "es": "Español", "fr": "Français", "de": "Deutsch", "pt": "Português"]
+    /// The app language picked in settings, or nil to follow the system.
+    static var chosen: String? {
+        get { Preferences.defaults.string(forKey: "uiLanguage").flatMap { supported.contains($0) ? $0 : nil } }
+        set { if let newValue { Preferences.defaults.set(newValue, forKey: "uiLanguage") } else { Preferences.defaults.removeObject(forKey: "uiLanguage") } }
+    }
     struct Catalog: Decodable {
         let strings: [String: [String: String]]
         let languageNames: [String: [String: String]]
@@ -23,6 +29,7 @@ enum L10n {
     }
     static var preferredLanguages: [String] {
         if let override = ProcessInfo.processInfo.environment["STTS_UI_LANGUAGE"], !override.isEmpty { return [override] }
+        if let chosen { return [chosen] }
         return Locale.preferredLanguages
     }
     static let language = uiLanguage(for: preferredLanguages)

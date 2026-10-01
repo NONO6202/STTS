@@ -1,5 +1,18 @@
 {
-  "build": 15,
+  "steam_app_id": 5360340,
+  "achievements": [
+    {"id": "FIRST_WORDS", "stat": "tts", "goal": 1},
+    {"id": "CHATTERBOX", "stat": "tts", "goal": 100},
+    {"id": "SILVER_TONGUE", "stat": "tts", "goal": 1000},
+    {"id": "CATCHPHRASES", "stat": "phrases", "goal": 5},
+    {"id": "SOUND_DJ", "stat": "sounds", "goal": 50},
+    {"id": "MY_VOICE", "stat": "clones", "goal": 1},
+    {"id": "SHAPESHIFTER", "stat": "filters", "goal": 10},
+    {"id": "HOTKEY_MASTER", "stat": "hotkeys", "goal": 5},
+    {"id": "POLYGLOT", "stat": "languages", "goal": 3},
+    {"id": "NIGHT_OWL", "stat": "night", "goal": 1}
+  ],
+  "build": 16,
   "caption": {
     "expiry_seconds": 10,
     "history": 100,
@@ -175,6 +188,7 @@
     "hi-IN"
   ],
   "limits": {
+    "model_idle_seconds": 1800,
     "recording_max": 30,
     "recording_min": 3,
     "text": 500,

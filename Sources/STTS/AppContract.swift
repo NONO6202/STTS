@@ -1,4 +1,17 @@
 import Foundation
+import AppKit
+
+/// Steam demo builds set STTSDemo in Info.plist; STTS_DEMO=1 previews the demo from source.
+enum Edition {
+    static let isDemo = (Bundle.main.object(forInfoDictionaryKey: "STTSDemo") as? Bool) == true
+        || ProcessInfo.processInfo.environment["STTS_DEMO"] == "1"
+    static let storeURL = URL(string: "steam://store/5360340")!
+    static let webStoreURL = URL(string: "https://store.steampowered.com/app/5360340/")!
+    @MainActor static func openStore() {
+        // The Steam client opens its own store page; a browser is the fallback.
+        if !NSWorkspace.shared.open(storeURL) { NSWorkspace.shared.open(webStoreURL) }
+    }
+}
 
 /// Product choices shared with Windows; OS-specific settings keep their existing storage keys.
 enum AppContract {
@@ -12,7 +25,7 @@ enum AppContract {
         let background, login, ttsEnabled, voiceMonitoring, outside, shake, keepDraft: Bool
         let volume, windowAlpha, captionAlpha, captionFont, captionY: Double
     }
-    struct Limits: Decodable { let text, transcript: Int; let recordingMin, recordingMax, voicePeak: Double }
+    struct Limits: Decodable { let text, transcript: Int; let modelIdleSeconds, recordingMin, recordingMax, voicePeak: Double }
     /// Layout and colour tokens both platforms draw from, so the two apps stay identical.
     struct Theme: Decodable { let accent: String; let cardRadius, controlRadius, pagePadding, pageTop, rowHeight, rowInset, sectionGap: Double }
     struct Caption: Decodable { let width, expirySeconds, padding, radius: Double; let history, visible: Int }
@@ -32,7 +45,10 @@ enum AppContract {
         let shakeSensitivities: [String: Double]
         let modelNames: [String: String]
         let languageOrder: [String]
+        let steamAppId: Int
+        let achievements: [Achievement]
     }
+    struct Achievement: Decodable { let id, stat: String; let goal: Int }
     static let shared: Manifest = {
         let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Shared/app.json")

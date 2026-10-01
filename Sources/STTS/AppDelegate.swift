@@ -10,6 +10,7 @@ import AppKit
     private var runtimeControl: BackgroundControlServer?
     private var hotkey: GlobalHotKey?
     private var captionHotkey: GlobalHotKey?
+    private var extraHotkeys: [GlobalHotKey] = []
     private var previousApp: NSRunningApplication?
     private var shakeTimer: Timer?
     private var shakeLocalMonitor: Any?
@@ -30,7 +31,7 @@ import AppKit
                         "visible": self.main?.isVisible == true]
             }
         } catch { NSApp.terminate(nil); return }
-        if state.ttsEnabled { state.connectMicrophone() } else { state.removeMicrophone() }
+        if state.ttsEnabled { state.connectMicrophone(); state.warmTTS() } else { state.removeMicrophone() }
         state.closeComposer = { [weak self] in self?.closeComposer() }
         state.overlayChanged = { [weak self] in self?.updateOverlay() }
         state.appearanceChanged = { [weak self] in self?.composer?.invalidateShadow() }
@@ -46,8 +47,14 @@ import AppKit
             if let hotkey = self.captionHotkey { try hotkey.update(shortcut) }
             else { self.captionHotkey = try GlobalHotKey(shortcut: shortcut, identifier: 2) { [weak self] in self?.state.toggleCaptions() } }
         }
-        do { captionHotkey = try GlobalHotKey(shortcut: state.captionShortcut, identifier: 2) { [weak self] in self?.state.toggleCaptions() } }
-        catch { state.error = error.localizedDescription }
+        if !Edition.isDemo {
+            do { captionHotkey = try GlobalHotKey(shortcut: state.captionShortcut, identifier: 2) { [weak self] in self?.state.toggleCaptions() } }
+            catch { state.error = error.localizedDescription }
+        }
+        state.hotkeysChanged = { [weak self] in self?.registerExtraHotkeys() }
+        // Report unlocks Steam missed while it was closed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.state.achievements.check() }
+        registerExtraHotkeys()
         let menu = NSMenu()
         for (title, action) in [("STTS 열기", #selector(showMain)), ("입력창 열기", #selector(showComposer)), ("자막 중지", #selector(stopCaptions)), ("완전 종료", #selector(quit))] {
             let item = NSMenuItem(title: L10n.text(title), action: action, keyEquivalent: ""); item.target = self; menu.addItem(item)
@@ -194,5 +201,15 @@ import AppKit
     }
     @objc private func stopCaptions() { state.stop() }
     @objc private func quit() { NSApp.terminate(nil) }
+    /// Skip, soundboard and microphone preset shortcuts are rebuilt whenever one changes.
+    private func registerExtraHotkeys() {
+        extraHotkeys = []
+        var failures: [String] = []
+        for (index, item) in state.extraHotkeys.enumerated() {
+            do { extraHotkeys.append(try GlobalHotKey(shortcut: item.shortcut, identifier: UInt32(10 + index), action: item.action)) }
+            catch { failures.append(error.localizedDescription) }
+        }
+        if !failures.isEmpty { state.error = failures.joined(separator: "\n") }
+    }
     func applicationWillTerminate(_ notification: Notification) { runtimeControl?.stop(); stopShakeDetection(); state.shutdown() }
 }

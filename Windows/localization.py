@@ -7,6 +7,7 @@ import re
 import sys
 
 SUPPORTED = ('ko', 'en', 'ja', 'zh-Hans', 'es', 'fr', 'de', 'pt')
+NATIVE_NAMES = {'ko': '한국어', 'en': 'English', 'ja': '日本語', 'zh-Hans': '简体中文', 'es': 'Español', 'fr': 'Français', 'de': 'Deutsch', 'pt': 'Português'}
 RESOURCE_ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
 CATALOG = json.loads((RESOURCE_ROOT / 'Shared/localization.json').read_text(encoding='utf-8'))
 
@@ -25,6 +26,15 @@ def system_languages():
     return ['en']
 
 
+def chosen_language():
+    """The app language picked in settings, or None to follow the system."""
+    try:
+        from config import data_directory
+        value = json.loads((data_directory() / 'settings.json').read_text(encoding='utf-8')).get('ui_language')
+    except (OSError, ValueError, AttributeError): return None
+    return value if value in SUPPORTED else None
+
+
 def ui_language(preferred):
     for code in preferred:
         base = code.replace('_', '-').lower().split('-')[0]
@@ -33,7 +43,12 @@ def ui_language(preferred):
     return 'en'
 
 
-LANGUAGE = ui_language(system_languages())
+def app_languages():
+    chosen = None if os.environ.get('STTS_UI_LANGUAGE') else chosen_language()
+    return [chosen] if chosen else system_languages()
+
+
+LANGUAGE = ui_language(app_languages())
 
 
 def tr(key, *arguments):

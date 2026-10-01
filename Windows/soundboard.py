@@ -58,7 +58,7 @@ class SoundboardLibrary:
         if not name:
             raise ValueError('사운드 이름이 비어 있습니다.')
         if any(unicodedata.normalize('NFC', value.strip()) == name for value in [*(clip['name'] for clip in self.clips), *phrase_names]):
-            raise ValueError('이미 사용 중인 이름입니다. 파일 이름을 바꾼 뒤 추가해 주세요.')
+            raise ValueError('이미 사용 중인 이름입니다. 다른 이름을 입력해 주세요.')
         ident = uuid.uuid4().hex
         clip = {'id': ident, 'name': name, 'file': ident + '.wav', 'duration': len(samples) / rate}
         self.folder.mkdir(parents=True, exist_ok=True)

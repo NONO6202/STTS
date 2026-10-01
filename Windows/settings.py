@@ -5,9 +5,10 @@ from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
 
-from localization import tr, message as localize_message
+from localization import tr, message as localize_message, LANGUAGE, NATIVE_NAMES, SUPPORTED, system_languages, ui_language
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QComboBox
 from config import CONTRACT, VERSION
 from widgets import label, column, row, button, styled, section, clear_layout, icon_button, icon_for
 from theme import ACCENT, on_change
@@ -27,6 +28,8 @@ class SettingsPanel:
     def show_menu(self):
         app = self.app
         clear_layout(app.settings_layout); layout = app.settings_layout
+        from config import DEMO
+        if DEMO: app.demo_notice(section(layout, tr('데모 버전')), '보이스 클론, TTS 단축어, 사운드보드, 마이크 효과, 실시간 자막은 정식판에서 사용할 수 있습니다.')
         self.runtime(section(layout, self.title('runtime')))
         self.microphone(section(layout, tr('가상 마이크')))
         self.input(section(layout, self.title('input')))
@@ -43,6 +46,28 @@ class SettingsPanel:
         from winutil import set_login
         app.check(layout, tr('로그인 시 자동 실행'), 'login', set_login)
         app.check(layout, tr('시작 시 백그라운드 실행'), 'background'); app.option(layout, tr('창 닫을 때'), 'close', CONTRACT['close_actions'])
+        self.language(layout)
+
+    def language(self, layout):
+        app = self.app
+        line = row(); caption = label(tr('앱 언어')); caption.setWordWrap(False); line.addWidget(caption, 1)
+        box = QComboBox(); box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        box.addItem(tr('시스템 언어'), None)
+        for code in SUPPORTED: box.addItem(NATIVE_NAMES[code], code)
+        box.setCurrentIndex(max(0, box.findData(app.config.get('ui_language')))); line.addWidget(box); layout.addLayout(line)
+        notice = row(); notice.setSpacing(6); hint = label(tr('다시 시작하면 언어가 바뀝니다.'), tone='secondary'); notice.addWidget(hint, 1)
+        restart = styled(button(tr('다시 시작'), app.restart), 'small'); notice.addWidget(restart); holder = layout.addLayout(notice)
+        def pending():
+            # The UI text is fixed at launch, so a different choice waits for a restart.
+            code = app.config.get('ui_language')
+            changed = ui_language([code] if code else system_languages()) != LANGUAGE
+            holder.setVisible(changed)
+        def update(index):
+            code = box.itemData(index)
+            if code: app.config['ui_language'] = code
+            else: app.config.pop('ui_language', None)
+            app.save(); pending()
+        box.currentIndexChanged.connect(update); pending()
 
     def microphone(self, layout):
         app = self.app

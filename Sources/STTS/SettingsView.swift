@@ -11,6 +11,9 @@ struct SettingsView: View {
     @State private var modelToDelete: DownloadedModel?
     var body: some View {
         Page(bottomInset: bottomInset) {
+            if Edition.isDemo {
+                FormSection(L10n.text("데모 버전")) { DemoNotice(text: "보이스 클론, TTS 단축어, 사운드보드, 마이크 효과, 실시간 자막은 정식판에서 사용할 수 있습니다.") }
+            }
             FormSection(AppContract.Setting.title("runtime")) { RuntimeSettingsView(settings: state.runtime) }
 
             FormSection(L10n.text("가상 마이크")) {
@@ -76,6 +79,39 @@ private struct RuntimeSettingsView: View {
         MenuRow(L10n.text("창 닫을 때"), selection: $settings.closeAction) {
             ForEach(WindowCloseAction.allCases) { Text(L10n.text($0.rawValue)).tag($0) }
         }
+        LanguageSettingView()
         if let error = settings.error { Text(L10n.message(error)).font(.caption).foregroundStyle(.red).padding(.vertical, 8) }
+    }
+}
+
+private struct LanguageSettingView: View {
+    @State private var choice = L10n.chosen ?? ""
+    var body: some View {
+        MenuRow(L10n.text("앱 언어"), selection: $choice) {
+            Text(L10n.text("시스템 언어")).tag("")
+            ForEach(L10n.supported, id: \.self) { Text(L10n.nativeNames[$0] ?? $0).tag($0) }
+        }.onChange(of: choice) { _, value in L10n.chosen = value.isEmpty ? nil : value }
+        // UI text is fixed at launch, so a different choice waits for a restart.
+        if L10n.uiLanguage(for: choice.isEmpty ? Locale.preferredLanguages : [choice]) != L10n.language {
+            FormRow(L10n.text("다시 시작하면 언어가 바뀝니다.")) {
+                Button(L10n.text("다시 시작")) { relaunch() }.controlSize(.small)
+            }.foregroundStyle(.secondary)
+        }
+    }
+    private func relaunch() {
+        // The runtime lives in Contents/Helpers of the STTS app; reopen the outer app after quitting.
+        var app = Bundle.main.bundleURL
+        if app.deletingLastPathComponent().lastPathComponent == "Helpers" {
+            app = app.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        }
+        // A new session keeps launchd from ending the helper together with this runtime's process group.
+        var attributes: posix_spawnattr_t?
+        posix_spawnattr_init(&attributes); defer { posix_spawnattr_destroy(&attributes) }
+        posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_SETSID))
+        let arguments = ["/bin/sh", "-c", "sleep 1.5; /usr/bin/open \"$0\"", app.path]
+        var argv = arguments.map { strdup($0) } + [nil]; defer { argv.forEach { free($0) } }
+        var pid = pid_t()
+        guard posix_spawn(&pid, "/bin/sh", nil, &attributes, &argv, environ) == 0 else { return }
+        NSApp.terminate(nil)
     }
 }

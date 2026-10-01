@@ -78,6 +78,8 @@ QWidget#main, QDialog#main, QScrollArea, QScrollArea > QWidget > QWidget {{ back
 QScrollArea {{ border: none; }}
 QToolTip {{ background: {p['card']}; color: {p['text']}; border: 1px solid {p['card_border']}; border-radius: 6px; padding: 4px 8px; }}
 QFrame#card {{ background: {p['card']}; border: 1px solid {p['card_border']}; border-radius: {card}px; }}
+QFrame#dropZone {{ background: {p['card']}; border: 2px dashed {p['field_border']}; border-radius: {card}px; }}
+QFrame#dropZone[active="true"] {{ background: {p['accent_faint']}; border: 2px dashed {ACCENT}; }}
 QFrame#step {{ background: {p['fill']}; border: none; border-radius: 12px; }}
 QFrame#hairline {{ background: {p['hairline']}; border: none; }}
 QWidget#highlight {{ background: {p['accent_faint']}; }}

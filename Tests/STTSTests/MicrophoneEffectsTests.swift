@@ -84,4 +84,21 @@ struct MicrophoneEffectsTests {
         let tremolo = render(tone(1000), filter: "트레몰로")
         #expect(tremolo[14950..<15050].allSatisfy { abs($0) < 0.00001 })
     }
+    @Test func spaceEffectsAndNoiseGate() {
+        var impulse = [Float](repeating: 0, count: 48000); impulse[12000] = 0.5
+        let reverb = render(impulse, filter: "리버브").map { abs($0) }
+        #expect(reverb[16000..<24000].max()! > 0.005)
+        #expect(reverb[40000...].max()! < reverb[16000..<24000].max()!)
+        #expect(render(impulse, filter: "합창")[12800..<13600].map { abs($0) }.max()! > 0.1)
+        func rms(_ frequency: Double) -> Double {
+            let y = render(tone(frequency), filter: "수중").dropFirst(12000)
+            return sqrt(y.reduce(0) { $0 + Double($1 * $1) } / Double(y.count))
+        }
+        #expect(rms(4000) < rms(300) * 0.1)
+        var generator = SystemRandomNumberGenerator()
+        let noise = (0..<48000).map { _ in Float.random(in: -0.0008...0.0008, using: &generator) }
+        for filter in ["로봇", "확성기", "디스토션", "8비트"] {
+            #expect(render(noise, filter: filter).dropFirst(12000).allSatisfy { abs($0) < 0.002 })
+        }
+    }
 }

@@ -7,7 +7,11 @@ enum BackgroundRuntime {
     static let label = "local.stts.runtime"
     static let domain = "gui/\(getuid())"
     static var preferences: UserDefaults {
-        Bundle.main.bundleIdentifier == "local.stts.mac" ? .standard : UserDefaults(suiteName: "local.stts.mac")!
+        // The demo keeps its own settings so it never changes the full version's.
+        if (Bundle.main.object(forInfoDictionaryKey: "STTSDemo") as? Bool) == true || ProcessInfo.processInfo.environment["STTS_DEMO"] == "1" {
+            return UserDefaults(suiteName: "local.stts.demo")!
+        }
+        return Bundle.main.bundleIdentifier == "local.stts.mac" ? .standard : UserDefaults(suiteName: "local.stts.mac")!
     }
     static let directory = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/STTS/Runtime")

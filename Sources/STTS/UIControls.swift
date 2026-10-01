@@ -14,6 +14,16 @@ struct SurfaceControls: View {
     }
 }
 
+/// Appearance controls are a full-version feature; the demo shows them locked.
+struct SurfaceLock: ViewModifier {
+    func body(content: Content) -> some View {
+        if Edition.isDemo {
+            content.disabled(true)
+            DemoNotice(text: "모양 꾸미기는 정식판에서 사용할 수 있습니다.")
+        } else { content }
+    }
+}
+
 /// Shows a surface over a patterned backdrop so its opacity is visible.
 struct SurfacePreview: View {
     let text: String
@@ -35,18 +45,19 @@ struct SurfacePreview: View {
 }
 
 struct ShortcutRecorder: NSViewRepresentable {
-    let shortcut: Shortcut
+    let shortcut: Shortcut?
     let changed: (Shortcut) -> Void
+    fileprivate var title: String { shortcut?.label ?? L10n.text("지정 안 함") }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(title: shortcut.label, target: context.coordinator, action: #selector(Coordinator.record))
+        let button = NSButton(title: title, target: context.coordinator, action: #selector(Coordinator.record))
         button.bezelStyle = .rounded; button.toolTip = L10n.text("단축키 변경")
         context.coordinator.button = button
         return button
     }
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.parent = self
-        if context.coordinator.monitor == nil { button.title = shortcut.label }
+        if context.coordinator.monitor == nil { button.title = title }
     }
     static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { coordinator.stop() }
     @MainActor final class Coordinator: NSObject {
@@ -68,11 +79,26 @@ struct ShortcutRecorder: NSViewRepresentable {
             }
         }
         func stop() {
-            if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil; button?.title = parent.shortcut.label
+            if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil; button?.title = parent.title
         }
     }
 }
 
+/// A recorder for an optional global shortcut, with a button that clears it.
+struct HotkeyField: View {
+    let shortcut: Shortcut?
+    var width: CGFloat = 180
+    let changed: (Shortcut?) -> Void
+    var body: some View {
+        HStack(spacing: 4) {
+            ShortcutRecorder(shortcut: shortcut) { changed($0) }.frame(width: width, height: 26)
+            if shortcut != nil {
+                Button { changed(nil) } label: { Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)) }
+                    .buttonStyle(.borderless).foregroundStyle(.secondary).help(L10n.text("단축키 지우기")).accessibilityLabel(L10n.text("단축키 지우기"))
+            }
+        }
+    }
+}
 
 enum Theme {
     private static let tokens = AppContract.shared.theme

@@ -187,7 +187,7 @@ class TTSPhraseTests(unittest.TestCase):
         previous = app.tts_worker = Mock()
         with patch.object(app_module.QTimer, 'singleShot') as schedule:
             app.finish_tts(token, '')
-        self.assertEqual(schedule.call_args.args[0], 30000)
+        self.assertEqual(schedule.call_args.args[0], app_module.CONTRACT['limits']['model_idle_seconds'] * 1000)
         release = schedule.call_args.args[1]
         app.tts_busy = True
         release(); previous.stop.assert_not_called()

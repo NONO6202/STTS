@@ -13,6 +13,7 @@ os.chdir(ROOT)
 BREW = Path(os.environ.get("HOMEBREW_PREFIX", "/opt/homebrew"))
 BUILD = ROOT / ".build"
 APP = ROOT / "dist/STTS.app"
+DEMO = ROOT / "dist/demo/STTS.app"
 
 
 def run(*args):
@@ -125,6 +126,13 @@ def main():
             copy_library(source)
             run("install_name_tool", "-change", dep, "@rpath/" + source.name, target)
 
+    # Steam achievements: the redistributable Steamworks library, when the SDK is available locally.
+    steam = Path(os.environ.get("STEAMWORKS_SDK", ROOT.parent / "steamworks_sdk/sdk")) / "redistributable_bin/osx/libsteam_api.dylib"
+    if steam.exists():
+        shutil.copy2(steam, frameworks / steam.name)
+        run("codesign", "--force", "--sign", "-", frameworks / steam.name)
+    else:
+        print("Steamworks SDK not found; building without Steam achievements.")
     resolve_dependencies(executable)
     for backend in (BREW / "opt/ggml/libexec").glob("*.so"):
         copy_library(backend)
@@ -189,5 +197,27 @@ def main():
     print(APP)
 
 
+def make_demo():
+    """The Steam demo is the packaged app with STTSDemo set in both bundles' Info.plist."""
+    if DEMO.exists():
+        shutil.rmtree(DEMO)
+    DEMO.parent.mkdir(parents=True, exist_ok=True)
+    run("ditto", APP, DEMO)
+    runtime = DEMO / "Contents/Helpers/STTSRuntime.app"
+    (runtime / "Contents/Frameworks/libsteam_api.dylib").unlink(missing_ok=True)  # The demo has no achievements.
+    for bundle in (runtime, DEMO):
+        path = bundle / "Contents/Info.plist"
+        info = plistlib.loads(path.read_bytes())
+        info["STTSDemo"] = True
+        path.write_bytes(plistlib.dumps(info))
+    run("codesign", "--force", "--deep", "--sign", "-", runtime)
+    run("codesign", "--force", "--deep", "--sign", "-", DEMO)
+    run("codesign", "--verify", "--deep", "--strict", DEMO)
+    print(DEMO)
+
+
 if __name__ == "__main__":
-    main()
+    if "--demo-only" not in sys.argv:
+        main()
+    if "--demo" in sys.argv or "--demo-only" in sys.argv:
+        make_demo()

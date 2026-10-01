@@ -5,7 +5,7 @@ import sys
 import weakref
 import numpy as np
 
-FILTERS = ('기본', '로봇', '전화', '에코', '확성기', '디스토션', '8비트', '트레몰로')
+FILTERS = ('기본', '로봇', '전화', '에코', '확성기', '디스토션', '8비트', '트레몰로', '리버브', '합창', '수중')
 _library = None
 
 
@@ -38,7 +38,8 @@ class MicrophoneEffects:
         coefficients = np.vstack((butter(4, 550, btype='highpass', fs=rate, output='sos'),
                                   butter(4, 2300, btype='lowpass', fs=rate, output='sos'),
                                   butter(2, 400, btype='highpass', fs=rate, output='sos'),
-                                  butter(2, min(4000, rate * .45), btype='lowpass', fs=rate, output='sos')))
+                                  butter(2, min(4000, rate * .45), btype='lowpass', fs=rate, output='sos'),
+                                  butter(4, 600, btype='lowpass', fs=rate, output='sos')))
         self._lib = _native()
         self._state = self._lib.stts_effects_create(rate, round(rate * .22), round(rate / 4000),
                                                     coefficients.ctypes.data_as(ctypes.POINTER(ctypes.c_double)))

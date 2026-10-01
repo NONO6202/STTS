@@ -9,6 +9,9 @@ import FluidAudio
             do { try SpeechMonitor.run(arguments: CommandLine.arguments); exit(0) }
             catch { exit(1) }
         }
+        if CommandLine.arguments.dropFirst().first == "--steam-achievements" {
+            exit(SteamAchievements.unlock(Array(CommandLine.arguments.dropFirst(2))))
+        }
         if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--microphone-receiver" {
             do { try MicrophoneCheck.receive(identifier: CommandLine.arguments[2]); exit(0) }
             catch { FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8)); exit(1) }

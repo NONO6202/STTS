@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, QTimer, QPoint, QSize, QEvent
 from PySide6.QtGui import QColor, QFont, QCursor, QKeyEvent, QInputMethodEvent
 from PySide6.QtWidgets import QApplication, QWidget, QFrame, QLabel, QPushButton, QComboBox, QSlider, QScrollArea, QStackedWidget, QHBoxLayout, QButtonGroup, QColorDialog, QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QToolTip, QDialog, QGraphicsDropShadowEffect, QListWidget, QListWidgetItem
 
-from config import CONTRACT, VERSION, DEFAULTS, TTS_MODELS, STT_MODELS, SPEECH_LANGUAGES, data_directory, write_json, voice_ready
+from config import DEMO, STORE_URL, CONTRACT, VERSION, DEFAULTS, TTS_MODELS, STT_MODELS, SPEECH_LANGUAGES, data_directory, write_json, voice_ready
 import theme
 from theme import P, TOKENS
 from widgets import label, column, row, button, divider, icon_for, icon_button, badge, styled, restyle, section, Bridge, MainWindow, ComposerWindow, ComposerEdit, ShortcutFilter, StatusMessage, CheckBox, ColorWell
@@ -26,7 +26,13 @@ from localization import tr, message as localize_message, language_name, speech_
 DATA = data_directory()
 
 
+class NoAchievements:
+    def __getattr__(self, name): return lambda *args, **kwargs: None
+
+
 class App:
+    # Defaults for state added after __init__ was split into many tested steps.
+    achievements = NoAchievements(); sent_history = (); skipping = None
     def __init__(self, root, smoke=False):
         from winutil import ChildJob
         self.root, self.smoke = root, smoke; root.owner = self
@@ -45,6 +51,7 @@ class App:
         self.config.setdefault('microphone_pitch', 0.0)
         self.config.setdefault('microphone_filter', '기본')
         self.config.setdefault('microphone_strength', 0.65)
+        self.config.setdefault('skip_key', None); self.config.setdefault('sound_keys', {}); self.config.setdefault('microphone_presets', [])
         from audio import MicrophonePassthrough
         self.live_microphone = MicrophonePassthrough()
         self.microphone_error = ''
@@ -57,9 +64,13 @@ class App:
         self.capture = self.hotkeys = self.composer = self.caption = self.tray = None; self.header_refreshers = []
         self.voice_cancel = None; self.recording_key = None; self.shortcut_buttons = {}; self.boxes = {}; self.color_buttons = {}; self.voice_sliders = {}
         self.tts_busy = self.voice_busy = False; self.audio_stop = threading.Event()
-        self.tts_queue = []; self.composer_draft = ""
+        self.tts_queue = []; self.composer_draft = ""; self.sent_history = []; self.skipping = None
         self.backends = {}; self.caption_history = []
         self.soundboard = SoundboardLibrary(DATA / "Soundboard"); self.playing_sound = None
+        from achievements import Achievements
+        from steam import library_path
+        # Only full Steam builds carry the Steam library; source builds and the demo never contact Steam.
+        self.achievements = Achievements(DATA, enabled=not (DEMO or smoke) and library_path().is_file())
         self.job = ChildJob(); self.tts_worker = self.make_tts_worker()
         root.setObjectName('main'); root.setWindowTitle(tr('STTS')); root.setFixedSize(CONTRACT['window']['width'], CONTRACT['window']['height'])
         theme.use(theme.dark_system()); root.setStyleSheet(theme.stylesheet())
@@ -109,6 +120,7 @@ class App:
         self.tools = ToolsPanel(self, self.content)
         self.settings = SettingsPanel(self)
         self.make_tts(); self.make_microphone(); self.make_stt(); self.settings.show_menu()
+        if DEMO: self.footer.hide()
         self.shortcut_filter = ShortcutFilter(self); QApplication.instance().installEventFilter(self.shortcut_filter)
         self.caption_timer = QTimer(root); self.caption_timer.setSingleShot(True); self.caption_timer.timeout.connect(self.clear_caption)
         self.composer_timer = QTimer(root); self.composer_timer.timeout.connect(self.composer_tick)
@@ -122,6 +134,8 @@ class App:
             if self.config['microphone_enabled'] and self.config['tts_enabled']:
                 QTimer.singleShot(0, lambda: self.microphone_toggle.setChecked(True))
             QTimer.singleShot(500, self.first_run)
+            QTimer.singleShot(1500, self.warm_tts)
+            QTimer.singleShot(5000, self.achievements.check)  # Report unlocks Steam missed while it was closed.
 
     @staticmethod
     def tint_on_check(control, name):
@@ -191,41 +205,87 @@ class App:
     def reset_voice_controls(self):
         for key, value in [('volume', 100), ('pitch', 0), ('speed', 100)]: self.voice_sliders[key].setValue(value)
 
-    def shortcut_row(self, layout, title, key):
+    def hotkey_slots(self):
+        """Every assigned global shortcut as (slot, shortcut, action)."""
+        slots = [('composer_key', self.config['composer_key'], self.show_composer)]
+        if not DEMO: slots.append(('stt_key', self.config['stt_key'], self.toggle_stt))
+        if self.config.get('skip_key'): slots.append(('skip_key', self.config['skip_key'], self.skip_tts))
+        if DEMO: return slots
+        for clip in self.soundboard.clips:
+            if self.config.get('sound_keys', {}).get(clip['id']):
+                slots.append(('sound:' + clip['id'], self.config['sound_keys'][clip['id']], lambda clip=clip: self.hotkey_sound(clip)))
+        for preset in self.config.get('microphone_presets', []):
+            if preset.get('hotkey'): slots.append(('preset:' + preset['id'], preset['hotkey'], lambda preset=preset: self.apply_microphone_preset(preset, toggle=True)))
+        return slots
+    def hotkey(self, slot):
+        return next((value for name, value, _ in self.hotkey_slots() if name == slot), None)
+    def set_hotkey(self, slot, value):
+        kind, _, ident = slot.partition(':')
+        if kind == 'sound':
+            if value: self.config['sound_keys'][ident] = value
+            else: self.config['sound_keys'].pop(ident, None)
+        elif kind == 'preset':
+            for preset in self.config['microphone_presets']:
+                if preset['id'] == ident: preset['hotkey'] = value
+        else: self.config[slot] = value
+
+    def shortcut_button(self, slot, width=180, clearable=False):
+        """A button that records a global shortcut for the slot; optional slots also get a clear button."""
         from winutil import shortcut_label
+        holder = QWidget(); line = row(); line.setSpacing(4); holder.setLayout(line)
+        control = button('', lambda: self.record_shortcut(slot)); control.setFixedSize(width, 26); line.addWidget(control)
+        clear = None
+        if clearable:
+            clear = icon_button('xmark', tr('단축키 지우기'), lambda: self.clear_shortcut(slot)); line.addWidget(clear)
+        def refresh():
+            value = self.hotkey(slot)
+            control.setText(localize_message(shortcut_label(value)) if value else tr('지정 안 함'))
+            if clear: clear.setVisible(bool(value))
+        control.refresh = refresh; refresh()
+        self.shortcut_buttons[slot] = control
+        return holder
+
+    def shortcut_row(self, layout, title, key, clearable=False):
         line = row(); line.addWidget(label(tr(title))); line.addStretch()
-        control = button(shortcut_label(self.config[key]), lambda: self.record_shortcut(key)); control.setFixedSize(180, 26)
-        self.shortcut_buttons[key] = control; line.addWidget(control); layout.addLayout(line)
+        line.addWidget(self.shortcut_button(key, clearable=clearable)); layout.addLayout(line)
 
     def record_shortcut(self, key):
         if self.recording_key: self.finish_shortcut(); return
         if self.hotkeys: self.hotkeys.close(); self.hotkeys = None
         self.recording_key = key; self.shortcut_buttons[key].setText(tr('키를 누르세요 · Esc 취소'))
+    def clear_shortcut(self, slot):
+        if self.recording_key: self.finish_shortcut()
+        self.set_hotkey(slot, None); self.save()
+        try: self.register_hotkeys()
+        except RuntimeError as error: self.status.setText(localize_message(str(error)))
+        try: self.shortcut_buttons[slot].refresh()
+        except (KeyError, RuntimeError): pass
     def finish_shortcut(self, candidate=None, error=None):
-        from winutil import shortcut_label, shortcut_data
+        from winutil import shortcut_data
         key = self.recording_key
         if not key: return
-        self.recording_key = None; old = self.config[key]
+        self.recording_key = None; old = self.hotkey(key)
         try:
             if error: raise error
             if candidate is not None:
-                if any(shortcut_data(self.config[k]) == candidate for k in ('composer_key', 'stt_key') if k != key):
+                if any(shortcut_data(value) == candidate for slot, value, _ in self.hotkey_slots() if slot != key):
                     raise ValueError('다른 기능과 겹치지 않는 단축키를 선택해 주세요.')
-                self.config[key] = candidate
+                self.set_hotkey(key, candidate)
             self.register_hotkeys()
-            if candidate is not None: self.save()
+            if candidate is not None: self.save(); self.count_hotkeys()
         except Exception as reason:
-            self.config[key] = old
+            self.set_hotkey(key, old)
             try: self.register_hotkeys()
             except RuntimeError: pass
             self.status.setText(localize_message(str(reason)))
-        self.shortcut_buttons[key].setText(localize_message(shortcut_label(self.config[key])))
+        try: self.shortcut_buttons[key].refresh()
+        except (KeyError, RuntimeError): pass  # The row was redrawn while recording.
     def register_hotkeys(self):
         if self.smoke: return
         from winutil import HotKeys
         if self.hotkeys: self.hotkeys.close(); self.hotkeys = None
-        self.hotkeys = HotKeys({1: (self.config['composer_key'], lambda: self.post(self.show_composer)),
-            2: (self.config['stt_key'], lambda: self.post(self.toggle_stt))})
+        self.hotkeys = HotKeys({index: (value, lambda action=action: self.post(action))
+                                for index, (_, value, action) in enumerate(self.hotkey_slots(), 1)})
 
     def feature_header(self, layout, name, control, detail, describe=None):
         """Leading page row: filled icon, bold switch title and a status line, as on macOS."""
@@ -241,6 +301,17 @@ class App:
         layout.addWidget(header).setMinimumHeight(56)
         return header
 
+    def demo_notice(self, layout, text):
+        """Explains a feature reserved for the full version, with a link to its store page."""
+        line = row(); line.setSpacing(8); note = label(tr(text), tone='secondary'); line.addWidget(note, 1)
+        line.addWidget(styled(button(tr('정식판 보기'), self.open_store), 'small')); layout.addLayout(line)
+    @staticmethod
+    def open_store():
+        # The Steam client opens its own store page; a browser is the fallback.
+        try: os.startfile('steam://store/' + STORE_URL.rstrip('/').split('/')[-1])
+        except OSError:
+            import webbrowser; webbrowser.open(STORE_URL)
+
     @staticmethod
     def accessory(text, symbol, callback):
         control = styled(button(text, callback), 'flat')
@@ -254,6 +325,7 @@ class App:
         self.feature_header(layout, 'TTS', self.tts_enabled, label(), lambda: (
             tr('STTS 연결됨') if self.tts_enabled.isChecked() else tr('TTS를 켜면 가상 마이크를 연결합니다.'), self.tts_enabled.isChecked()))
         self.shortcut_row(layout, tr('입력 단축키'), 'composer_key')
+        self.shortcut_row(layout, tr('건너뛰기 단축키'), 'skip_key', clearable=True)
         self.option(layout, tr('사양'), 'tts', list(TTS_MODELS), self.refresh_voices)
         voice_layout = row(); caption = label(tr('목소리')); caption.setMinimumWidth(64); voice_layout.addWidget(caption, 1)
         self.voice_box = QComboBox(); self.voice_box.setMinimumWidth(180); self.voice_box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents); voice_layout.addWidget(self.voice_box)
@@ -285,10 +357,14 @@ class App:
         self.microphone_box.currentIndexChanged.connect(self.select_microphone)
         self.scale(mic_layout, tr('마이크 음량'), 'microphone_volume', self.microphone_volume_changed)
         effects_layout = section(self.microphone_layout, tr('마이크 효과'))
-        effects_layout.accessory(self.accessory(tr('기본값 복원'), 'arrow.counterclockwise', self.reset_microphone_effects))
+        if DEMO: self.demo_notice(effects_layout, '마이크 효과는 정식판에서 사용할 수 있습니다.')
+        else: effects_layout.accessory(self.accessory(tr('기본값 복원'), 'arrow.counterclockwise', self.reset_microphone_effects))
         self.microphone_pitch_slider = self.scale(effects_layout, tr('피치'), 'microphone_pitch', self.microphone_effects_changed, minimum=-12, maximum=12, factor=1, suffix='')
         self.option(effects_layout, tr('필터'), 'microphone_filter', FILTERS, self.microphone_effects_changed)
         self.microphone_strength_slider = self.scale(effects_layout, tr('강도'), 'microphone_strength', self.microphone_effects_changed)
+        if DEMO:
+            for control in (self.microphone_pitch_slider, self.boxes['microphone_filter'], self.microphone_strength_slider): control.setEnabled(False)
+        else: self.presets_layout = section(self.microphone_layout, tr('효과 프리셋')); self.show_microphone_presets()
         self.microphone_effects_changed()
         self.refresh_microphones()
         self.microphone_timer = QTimer(self.root); self.microphone_timer.setInterval(500)
@@ -319,8 +395,58 @@ class App:
         self.live_microphone.volume = self.config['microphone_volume']
 
     def microphone_effects_changed(self):
+        if DEMO: self.live_microphone.effect_settings = (0, '기본', 0); return
         self.live_microphone.effect_settings = (self.config['microphone_pitch'], self.config['microphone_filter'], self.config['microphone_strength'])
+        self.count_filter()
         self.microphone_strength_slider.setEnabled(self.config['microphone_filter'] != '기본')
+
+    def show_microphone_presets(self):
+        """Saved pitch/filter/strength combinations, each with an optional global shortcut."""
+        from PySide6.QtWidgets import QLineEdit
+        layout = self.presets_layout
+        while layout.rows.count():
+            item = layout.rows.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
+        line = row(); name = QLineEdit(); name.setPlaceholderText(tr('프리셋 이름')); name.setAccessibleName(tr('프리셋 이름')); line.addWidget(name, 1)
+        def save():
+            title = name.text().strip()
+            if not title: self.status.setText(tr('프리셋 이름을 입력해 주세요.')); return
+            presets = self.config['microphone_presets']
+            if any(preset['name'] == title for preset in presets): self.status.setText(tr('이미 있는 프리셋 이름입니다.')); return
+            presets.append({'id': uuid.uuid4().hex, 'name': title, 'pitch': self.config['microphone_pitch'],
+                            'filter': self.config['microphone_filter'], 'strength': self.config['microphone_strength'], 'hotkey': None})
+            self.save(); self.show_microphone_presets()
+        name.returnPressed.connect(save)
+        line.addWidget(styled(button(tr('현재 효과 저장'), save), 'small')); layout.addLayout(line)
+        for preset in self.config['microphone_presets']:
+            line = row(); line.setSpacing(8)
+            details = column(spacing=2); details.addWidget(label(preset['name']))
+            details.addWidget(label(f"{tr(preset['filter'])} · {tr('피치')} {preset['pitch']:+.0f} · {tr('강도')} {round(preset['strength'] * 100)}%", muted=True)); line.addLayout(details, 1)
+            line.addWidget(styled(button(tr('적용'), lambda p=preset: self.apply_microphone_preset(p)), 'small'))
+            line.addWidget(self.shortcut_button('preset:' + preset['id'], width=120, clearable=True))
+            line.addWidget(icon_button('trash', tr('삭제'), lambda p=preset: self.delete_microphone_preset(p), destructive=True))
+            layout.addLayout(line)
+
+    def apply_microphone_preset(self, preset, toggle=False):
+        current = (self.config['microphone_pitch'], self.config['microphone_filter'], self.config['microphone_strength'])
+        if toggle and current == (preset['pitch'], preset['filter'], preset['strength']):
+            # Pressing an active preset's shortcut again returns to the plain microphone.
+            self.reset_microphone_effects(); self.status.setText(tr('마이크 효과 끔')); return
+        self.microphone_pitch_slider.setValue(round(preset['pitch']))
+        self.boxes['microphone_filter'].setCurrentIndex(max(0, self.boxes['microphone_filter'].findData(preset['filter'])))
+        self.microphone_strength_slider.setValue(round(preset['strength'] * 100))
+        self.status.setText(localize_message('효과: ' + preset['name']))
+
+    def delete_microphone_preset(self, preset):
+        self.config['microphone_presets'] = [item for item in self.config['microphone_presets'] if item['id'] != preset['id']]
+        self.save(); self.show_microphone_presets()
+        if preset.get('hotkey'):
+            try: self.register_hotkeys()
+            except RuntimeError as error: self.status.setText(localize_message(str(error)))
+
+    def count_filter(self):
+        if self.microphone_active and self.config.get('microphone_filter', '기본') != '기본':
+            self.achievements.include('filters', self.config['microphone_filter'])
 
     def reset_microphone_effects(self):
         self.microphone_pitch_slider.setValue(0)
@@ -351,7 +477,7 @@ class App:
             self.microphone_active = True; self.microphone_retry_at = 0.0
             if self.status.text() == self.microphone_error: self.status.setText('')
             self.microphone_error = ''
-            self.microphone_status.setText(tr('● 내 말을 가상 마이크로 보내는 중'))
+            self.microphone_status.setText(tr('● 내 말을 가상 마이크로 보내는 중')); self.count_filter()
         except Exception as error:
             self.live_microphone.stop()
             self.microphone_active = False; self.microphone_retry_at = time.monotonic() + 2.0
@@ -469,13 +595,13 @@ class App:
         index = self.voice_box.findData(selected)
         if index < 0 and presets: index = 0; self.config['voice'] = presets[0]
         self.voice_box.setCurrentIndex(index); self.voice_box.blockSignals(False); self.voice_row.setVisible(tier != '기본')
-        self.refresh_languages(); self.save()
+        self.refresh_languages(); self.save(); self.warm_tts()
     def voice_changed(self, index):
         value = self.voice_box.itemData(index)
         if not value: return
         if value.startswith('clone:'): self.config['selected_clone_id'] = value.removeprefix('clone:')
         else: self.config['selected_clone_id'] = None; self.config['voice'] = value.removeprefix('preset:')
-        self.save()
+        self.save(); self.warm_tts()
     def refresh_languages(self):
         key = {'기본': 'gtts', '낮음': 'supertonic3'}.get(self.config['tts'], 'qwenTTS')
         codes = SPEECH_LANGUAGES[key]; self.language_box.blockSignals(True); self.language_box.clear()
@@ -506,8 +632,12 @@ class App:
             line = row(); line.addWidget(label(tr(text)), 1)
             control = ColorWell(lambda key=key: self.pick_color(key)); control.setAccessibleName(localize_message(text + ' 색상'))
             self.color_buttons[key] = control; line.addWidget(control); layout.addLayout(line)
-        self.scale(layout, tr('불투명도'), prefix + '_alpha', self.refresh_surfaces)
-        if prefix == 'caption': self.scale(layout, tr('글자 크기'), 'caption_font', self.refresh_surfaces, minimum=14, maximum=40, factor=1, suffix='')
+        opacity = self.scale(layout, tr('불투명도'), prefix + '_alpha', self.refresh_surfaces)
+        size = self.scale(layout, tr('글자 크기'), 'caption_font', self.refresh_surfaces, minimum=14, maximum=40, factor=1, suffix='') if prefix == 'caption' else None
+        if DEMO:
+            for control in [opacity, size, *(self.color_buttons[prefix + '_' + suffix] for suffix in ('bg', 'color'))]:
+                if control: control.setEnabled(False)
+            self.demo_notice(layout, '모양 꾸미기는 정식판에서 사용할 수 있습니다.')
         self.refresh_surfaces()
     def rgba(self, prefix):
         color = QColor(self.config[prefix + '_bg'])
@@ -536,16 +666,17 @@ class App:
         if not enabled:
             self.microphone_toggle.setChecked(False)
             self.cancel_tts(); self.hide_composer()
+        else: self.warm_tts()
         self.update_busy()
     def submit(self, widget):
         if getattr(widget, 'preedit', False): return
         input_text = unicodedata.normalize('NFC', widget.text().strip())
-        phrases = self.config.get('tts_phrases', {})
+        phrases = {} if DEMO else self.config.get('tts_phrases', {})
         text = phrases.get(input_text, input_text)
         if not self.tts_enabled.isChecked(): self.status.setText(tr('TTS를 켜세요.')); return
         if self.voice_busy: self.status.setText(tr('현재 음성 작업이 끝난 후 다시 전송하세요.')); return
         if not 1 <= len(text) <= CONTRACT['limits']['text']: self.status.setText(tr('1~500자를 입력하세요.')); return
-        if input_text not in phrases:
+        if input_text not in phrases and not DEMO:
             try: clip = self.soundboard.clip_for_input(input_text)
             except ValueError as error:
                 self.status.setText(localize_message(str(error)))
@@ -554,8 +685,8 @@ class App:
             else:
                 if clip is not None:
                     if self.tts_busy:
-                        self.tts_queue.append(('sound', dict(clip))); widget.clear(); self.hide_composer(); self.update_busy()
-                    elif self.play_sound(clip): widget.clear(); self.hide_composer()
+                        self.tts_queue.append(('sound', dict(clip))); self.remember_sent(input_text); widget.clear(); self.hide_composer(); self.update_busy()
+                    elif self.play_sound(clip): self.remember_sent(input_text); widget.clear(); self.hide_composer()
                     else: QToolTip.showText(widget.mapToGlobal(QPoint(0, widget.height() + 10)), self.status.text(), widget, msecShowTime=10000)
                     return
         from audio import cable_output
@@ -566,18 +697,55 @@ class App:
             QToolTip.showText(widget.mapToGlobal(QPoint(0, widget.height() + 10)), localize_message(str(error)), widget, msecShowTime=10000)
             return
         request = {'action': 'tts', 'text': text, 'root': str(self.model_root), 'language': self.config['language'], 'voice': self.config['voice'], 'pitch': self.config.get('pitch', 0), 'speed': self.config.get('speed', 1)}
-        model = TTS_MODELS[self.config['tts']]
-        profile = next((p for p in self.profiles if p['id'] == self.config.get('selected_clone_id')), None) if model.startswith('qwen') else None
+        model, profile = self.tts_model()
         if profile and not voice_ready(profile, self.voice_root):
             self.status.setText(tr('하단 보이스 클론에서 선택한 목소리의 이름과 대본을 확인해 주세요.')); return
-        if model.startswith('qwen'):
-            if profile: request.update(reference=str(self.voice_root / (profile['id'] + '.wav')), transcript=profile['transcript'], voice_root=str(self.voice_root))
-            else: model += 'Custom'
-        request['model'] = model; widget.clear(); self.hide_composer()
+        if profile: request.update(reference=str(self.voice_root / (profile['id'] + '.wav')), transcript=profile['transcript'], voice_root=str(self.voice_root))
+        request['model'] = model; self.remember_sent(input_text); widget.clear(); self.hide_composer()
         if self.tts_busy:
             self.tts_queue.append(('tts', request)); self.update_busy(); return
         self.start_tts(request)
 
+    def spoke(self, language):
+        self.achievements.count('tts'); self.achievements.include('languages', language)
+        if 2 <= time.localtime().tm_hour < 5: self.achievements.level('night', 1)
+    def count_hotkeys(self):
+        self.achievements.level('hotkeys', len(self.config.get('sound_keys', {})) + sum(1 for preset in self.config.get('microphone_presets', []) if preset.get('hotkey')))
+
+    def remember_sent(self, text):
+        # Recent inputs for ↑/↓ in the input box; kept in memory only.
+        self.sent_history = [item for item in self.sent_history if item != text][-49:] + [text]
+
+    def hotkey_sound(self, clip):
+        if not self.tts_enabled.isChecked() or clip not in self.soundboard.clips: return
+        if self.playing_sound == clip['id']: self.cancel_tts()
+        elif self.tts_busy: self.tts_queue.append(('sound', dict(clip))); self.update_busy()
+        else: self.play_sound(clip)
+
+    def tts_model(self):
+        """The worker model for the current tier and voice, and the clone profile it needs, if any."""
+        model = TTS_MODELS[self.config['tts']]
+        if not model.startswith('qwen'): return model, None
+        profile = next((p for p in self.profiles if p['id'] == self.config.get('selected_clone_id')), None)
+        return (model, profile) if profile else (model + 'Custom', None)
+    def warm_tts(self):
+        """Loads the selected voice model before the first sentence so speaking does not wait for it."""
+        model, _ = self.tts_model()
+        if self.closing or self.smoke or self.tts_busy or not self.config['tts_enabled'] or model == 'gtts': return
+        worker, token = self.tts_worker, self.audio_stop
+        request = {'action': 'preload', 'model': model, 'root': str(self.model_root)}
+        def run():
+            try: worker.request(request)
+            except Exception: return  # The next sentence loads the model and reports any error.
+            self.post(self.release_idle_tts, token)
+        threading.Thread(target=run, daemon=True).start()
+    def release_idle_tts(self, token):
+        # Keep the voice model in VRAM between sentences; free it only after a long idle period.
+        worker = self.tts_worker
+        def release():
+            if self.closing or self.tts_busy or self.audio_stop is not token or self.tts_worker is not worker: return
+            worker.stop(); self.tts_worker = self.make_tts_worker()
+        QTimer.singleShot(int(CONTRACT['limits']['model_idle_seconds'] * 1000), release)
     def start_tts(self, request):
         self.tts_busy = True
         self.audio_stop = threading.Event(); token = self.audio_stop; worker = self.tts_worker
@@ -592,12 +760,18 @@ class App:
                 if not token.is_set():
                     self.report('가상 마이크로 보내는 중…', active=lambda: self.audio_stop is token and not token.is_set())
                     warning = play_cable(np.frombuffer(base64.b64decode(result['audio']), dtype='<f4'), result['rate'], lambda: self.config['volume'], token, monitor=monitoring)
+                if not token.is_set(): self.spoke(request['language'])
                 self.post(self.finish_tts, token, warning or '')
             except Exception as error:
-                if not token.is_set(): self.post(self.finish_tts, token, str(error), True)
+                if not token.is_set() or token is self.skipping: self.post(self.finish_tts, token, str(error), True)
         threading.Thread(target=run, daemon=True).start()
     def finish_tts(self, token, message, failed=False):
-        if token is not self.audio_stop or token.is_set(): return
+        if token is not self.audio_stop: return
+        if token.is_set():
+            # A skipped sentence ends quietly and the queue moves on.
+            if token is not self.skipping: return
+            message, failed = '', False
+        self.skipping = None
         self.playing_sound = None
         self.tts_busy = False
         if failed: self.tts_queue.clear()
@@ -607,13 +781,15 @@ class App:
             if kind == 'tts': self.start_tts(value)
             elif not self.play_sound(value): self.tts_queue.clear(); self.update_busy()
             return
-        worker = self.tts_worker
-        def release():
-            if self.closing or self.tts_busy or self.audio_stop is not token or self.tts_worker is not worker: return
-            worker.stop(); self.tts_worker = self.make_tts_worker()
-        QTimer.singleShot(30000, release)
+        self.release_idle_tts(token)
+    def skip_tts(self):
+        """Stops the sentence or sound being sent and moves on to the next queued one."""
+        if not self.tts_busy: return
+        if not self.tts_queue: self.cancel_tts(); return
+        # Playback stops at once; a sentence still being generated is dropped when the worker returns it.
+        self.skipping = self.audio_stop; self.audio_stop.set(); self.status.setText(tr('건너뛰는 중…'))
     def cancel_tts(self):
-        self.tts_queue.clear()
+        self.skipping = None; self.tts_queue.clear()
         self.audio_stop.set(); self.tts_worker.stop(); self.tts_worker = self.make_tts_worker()
         self.playing_sound = None
         self.tts_busy = False; self.status.clear(); self.update_busy()
@@ -637,9 +813,20 @@ class App:
         def fill_completion():
             item = choices.currentItem()
             if item is not None: field.setText(item.data(Qt.ItemDataRole.UserRole)); field.end(False); field.setFocus()
+        recall = {'index': len(self.sent_history), 'draft': '', 'active': False}
+        def recall_sent(step):
+            # ↑/↓ walk through recently sent inputs, then back to the unsent draft.
+            history = self.sent_history
+            if not history: return
+            if recall['index'] == len(history): recall['draft'] = field.text()
+            recall['index'] = max(0, min(len(history), recall['index'] + step)); recall['active'] = True
+            field.setText(history[recall['index']] if recall['index'] < len(history) else recall['draft']); field.end(False)
+        def typed(_):
+            recall['active'] = False; recall['index'] = len(self.sent_history)
+        field.recalled.connect(recall_sent); field.textEdited.connect(typed)
         def update_completions():
             from interaction import completion_candidates
-            items = [] if field.preedit else completion_candidates(field.text(), self.config.get('tts_phrases', {}), [clip['name'] for clip in self.soundboard.clips])
+            items = [] if field.preedit or recall['active'] or DEMO else completion_candidates(field.text(), self.config.get('tts_phrases', {}), [clip['name'] for clip in self.soundboard.clips])
             choices.clear()
             for name, kind in items:
                 item = QListWidgetItem(name + '  ·  ' + tr(kind)); item.setData(Qt.ItemDataRole.UserRole, name); item.setSizeHint(QSize(0, 32)); choices.addItem(item)
@@ -684,8 +871,12 @@ class App:
         self.stt_enabled = CheckBox(tr('STT 사용')); self.stt_enabled.clicked.connect(self.toggle_stt)
         self.feature_header(layout, 'STT', self.stt_enabled, label(), lambda: (
             tr('Discord 수신 중') if self.capture else tr('자막 꺼짐'), bool(self.capture)))
-        self.shortcut_row(layout, tr('자막 단축키'), 'stt_key')
+        if DEMO:
+            self.stt_enabled.setEnabled(False); self.demo_notice(layout, '실시간 자막은 정식판에서 사용할 수 있습니다.')
+        else:
+            self.shortcut_row(layout, tr('자막 단축키'), 'stt_key')
         self.option(layout, tr('사양'), 'stt', list(STT_MODELS), self.stt_model_changed)
+        if DEMO: self.boxes['stt'].setEnabled(False)
         self.history = QLabel(); self.history.setWordWrap(True); self.history.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.history.hide(); self.stt_layout.addWidget(self.history)
         self.surface_controls(section(self.stt_layout, tr('자막 모양')), 'caption')
@@ -693,6 +884,7 @@ class App:
         if self.capture: self.stop_stt(); self.toggle_stt()
     def toggle_stt(self):
         if self.capture: self.stop_stt(); return
+        if DEMO: self.stt_enabled.setChecked(False); return
         if self.voice_busy: self.stt_enabled.setChecked(False); self.status.setText(tr('목소리 저장이 끝난 뒤 STT를 켜세요.')); return
         from audio import Capture, Worker
         def progress(message): self.report(message, active=lambda: self.capture is capture)
@@ -743,7 +935,7 @@ class App:
         if self.recording_key: self.finish_shortcut()
         if self.voice_cancel: self.voice_cancel()
         self.tools.dismiss()
-        self.tabs.setCurrentIndex(index); self.tab_buttons.button(index).setChecked(True); self.footer.setVisible(index == 0); self.layout_overlays()
+        self.tabs.setCurrentIndex(index); self.tab_buttons.button(index).setChecked(True); self.footer.setVisible(index == 0 and not DEMO); self.layout_overlays()
     def save_tts_phrase(self, shortcut, phrase, original=None):
         if getattr(self, 'voice_busy', False): raise ValueError('파일 가져오기가 끝난 뒤 단축어를 저장해 주세요.')
         shortcut, phrase = unicodedata.normalize('NFC', shortcut.strip()), phrase.strip()
@@ -754,15 +946,15 @@ class App:
         if original is not None: phrases.pop(original, None)
         phrases[shortcut] = phrase
         write_json(DATA / 'settings.json', dict(self.config, tts_phrases=phrases))
-        self.config['tts_phrases'] = phrases
+        self.config['tts_phrases'] = phrases; self.achievements.level('phrases', len(phrases))
     def delete_tts_phrase(self, shortcut):
         phrases = dict(self.config.get('tts_phrases', {})); phrases.pop(shortcut, None)
         write_json(DATA / 'settings.json', dict(self.config, tts_phrases=phrases))
         self.config['tts_phrases'] = phrases
 
-    def add_sound_files(self):
+    def add_sound_files(self, paths=None, name=None):
         if self.tts_busy or self.voice_busy: self.status.setText(tr('현재 음성 작업이 끝난 뒤 파일을 추가하세요.')); return
-        paths, _ = QFileDialog.getOpenFileNames(self.root, tr('사운드 추가'), '', tr('음성 파일 (*.wav *.mp3 *.m4a *.aiff *.aif *.flac)'))
+        if paths is None: paths, _ = QFileDialog.getOpenFileNames(self.root, tr('사운드 추가'), '', tr('음성 파일 (*.wav *.mp3 *.m4a *.aiff *.aif *.flac)'))
         if not paths: return
         self.voice_busy = True; self.update_busy(); self.status.setText(tr('사운드 가져오는 중…'))
         def run():
@@ -774,7 +966,7 @@ class App:
                     try:
                         result = worker.request({'action': 'decode_sound', 'path': path})
                         samples = np.frombuffer(base64.b64decode(result['audio']), dtype='<f4')
-                        self.soundboard.import_samples(Path(path).stem, samples, 24000, self.config.get('tts_phrases', {}))
+                        self.soundboard.import_samples(name if name and len(paths) == 1 else Path(path).stem, samples, 24000, self.config.get('tts_phrases', {}))
                     except Exception as error: errors.append(Path(path).name + ': ' + str(error))
             finally: worker.stop()
             self.post(self.finish_sound_import, errors)
@@ -789,6 +981,10 @@ class App:
         if QMessageBox.question(self.root, tr('사운드를 삭제할까요?'), localize_message(clip['name'] + ' 등록을 삭제합니다. 가져온 원본 파일은 유지됩니다.')) != QMessageBox.StandardButton.Yes: return
         try: self.soundboard.remove(clip)
         except (OSError, ValueError) as error: self.status.setText(localize_message(str(error))); return
+        if self.config['sound_keys'].pop(clip['id'], None):
+            self.save()
+            try: self.register_hotkeys()
+            except RuntimeError as error: self.status.setText(localize_message(str(error)))
         self.tools.show_sounds()
 
     def play_sound(self, clip):
@@ -809,13 +1005,16 @@ class App:
                     samples, rate = np.frombuffer(base64.b64decode(result['audio']), dtype='<f4'), result['rate']
                 else: samples, rate = sf.read(self.soundboard.audio_path(clip), dtype='float32')
                 warning = play_cable(samples, rate, lambda: self.config['volume'], token, monitor=monitoring) if not token.is_set() else None
+                if not token.is_set(): self.achievements.count('sounds')
                 self.post(self.finish_tts, token, warning or '')
             except Exception as error:
-                if not token.is_set(): self.post(self.finish_tts, token, str(error), True)
+                if not token.is_set() or token is self.skipping: self.post(self.finish_tts, token, str(error), True)
         threading.Thread(target=run, daemon=True).start()
         return True
 
-    def save_profiles(self): write_json(self.voice_root / 'profiles.json', self.profiles); self.refresh_voices()
+    def save_profiles(self):
+        write_json(self.voice_root / 'profiles.json', self.profiles); self.refresh_voices()
+        self.achievements.level('clones', sum(1 for item in self.profiles if voice_ready(item, self.voice_root)))
     def delete_voice(self, profile):
         if self.tts_busy or self.voice_busy: self.status.setText(tr('음성 작업이 끝난 뒤 삭제하세요.')); return
         if QMessageBox.question(self.root, tr('목소리 삭제'), localize_message(f"{profile['name']} 목소리를 삭제할까요?")) != QMessageBox.StandardButton.Yes: return
@@ -823,13 +1022,14 @@ class App:
         path = self.voice_root / (profile['id'] + '.wav')
         if path.exists(): send2trash(str(path))
         self.profiles.remove(profile); self.save_profiles(); self.tools.show_voices()
-    def add_voice_files(self):
+    def add_voice_files(self, paths=None, name=None):
         if self.tts_busy or self.voice_busy or self.capture: self.status.setText(tr('TTS와 STT를 멈춘 뒤 목소리를 추가하세요.')); return
-        paths, _ = QFileDialog.getOpenFileNames(self.root, tr('목소리 추가'), '', tr('음성 파일 (*.mp3 *.wav *.m4a *.aiff *.aif)'))
+        if paths is None: paths, _ = QFileDialog.getOpenFileNames(self.root, tr('목소리 추가'), '', tr('음성 파일 (*.mp3 *.wav *.m4a *.aiff *.aif)'))
         if not paths: return
         self.voice_busy = True; self.update_busy()
         def run():
-            for index, path in enumerate(paths): self.store_voice((Path(path).stem, ''), None, path, more=index < len(paths) - 1)
+            for index, path in enumerate(paths):
+                self.store_voice((name if name and len(paths) == 1 else Path(path).stem, ''), None, path, more=index < len(paths) - 1)
         threading.Thread(target=run, daemon=True).start()
     def store_voice(self, details, data, path, more=False):
         from audio import Worker
@@ -922,12 +1122,12 @@ class App:
         self.microphone_box.setEnabled(not self.microphone_active)
         self.microphone_refresh.setEnabled(not (self.microphone_active or self.tts_busy or self.voice_busy or self.capture))
         for key in ('pitch', 'speed'): self.voice_sliders[key].setEnabled(not self.tts_busy)
-        self.boxes['stt'].setEnabled(not (self.capture or self.voice_busy)); self.tts_cancel.setVisible(self.tts_busy); self.status.dismiss.setVisible(not self.tts_busy); self.status.fit_content(); self.layout_overlays()
+        self.boxes['stt'].setEnabled(not (self.capture or self.voice_busy or DEMO)); self.tts_cancel.setVisible(self.tts_busy); self.status.dismiss.setVisible(not self.tts_busy); self.status.fit_content(); self.layout_overlays()
         self.tools.update_sound_controls()
         for refresh in self.header_refreshers: refresh()
     @property
     def overlay_bottom(self):
-        return (60 if self.tabs.currentIndex() == 0 else 0) + (44 if self.status.text() else 0)
+        return (60 if self.tabs.currentIndex() == 0 and not DEMO else 0) + (44 if self.status.text() else 0)
 
     def layout_overlays(self):
         self.footer.move((self.root.width() - self.footer.width()) // 2, self.root.height() - 50)
@@ -935,7 +1135,7 @@ class App:
         self.status_slot.move((self.root.width() - self.status_slot.width()) // 2, self.root.height() - self.overlay_bottom)
         padding = CONTRACT['window']['padding']
         for index, layout in enumerate((self.tts_layout, self.microphone_layout, self.stt_layout, self.settings_layout)):
-            layout.setContentsMargins(padding, TOKENS['page_top'], padding, padding + (60 if index == 0 else 0) + (44 if self.status.text() else 0))
+            layout.setContentsMargins(padding, TOKENS['page_top'], padding, padding + (60 if index == 0 and not DEMO else 0) + (44 if self.status.text() else 0))
         if hasattr(self, 'tools'): self.tools.panel.resize(self.content.width() - 24, self.content.height() - 80 - self.overlay_bottom)
         self.navigation.raise_(); self.footer.raise_(); self.status_slot.raise_()
 
@@ -963,6 +1163,13 @@ class App:
         if self.hotkeys: self.hotkeys.close()
         if self.tray: self.tray.hide()
         self.job.close(); self.root.close(); QApplication.instance().quit()
+    def restart(self):
+        import subprocess
+        # The launcher waits for this runtime to exit, then starts it again with the saved settings.
+        if getattr(sys, 'frozen', False): command = [str(Path(sys.executable).with_name('STTS.exe'))]
+        else: command = [sys.executable, str(Path(__file__).with_name('launcher.py'))]
+        subprocess.Popen(command + ['--restart', str(os.getpid())], creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)
+        self.quit()
 
 
 class ControlServer:

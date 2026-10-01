@@ -237,16 +237,15 @@
     ]
   },
   "qwen06": {
-    "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-    "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+    "repo": "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-8bit",
+    "revision": "50f45ef0047cde7e84c2ef04326acb8ada2436a7",
     "kind": "tts",
-    "bits": 16,
     "files": [
       {
         "path": "config.json",
-        "size": 4494,
+        "size": 5522,
         "sha256": null,
-        "git_sha1": "4e923f500f5c3eeb78d44072e7049b28817c2e04"
+        "git_sha1": "277c1da781264cf96a84f9646085c3bafe29d837"
       },
       {
         "path": "generation_config.json",
@@ -262,9 +261,15 @@
       },
       {
         "path": "model.safetensors",
-        "size": 1829344272,
-        "sha256": "180b3b10eb1c9f1b4db7806d5475bae3071c0243c299d49926bab1da3b6946f6",
-        "git_sha1": "401a365c4572f09f44d48bb336fdbf94cd1e3ad2"
+        "size": 1304461214,
+        "sha256": "9488e7005cc0cf44f8804eb543668d0763bb1c649ce6f1eddc663519524b3182",
+        "git_sha1": "73f0c7a1a4a5420ca69c4e1698ec3590b06cec1e"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 77731,
+        "sha256": null,
+        "git_sha1": "6d3a0903f5ce1f8f49e37be40c646700dc456014"
       },
       {
         "path": "preprocessor_config.json",
@@ -311,16 +316,15 @@
     ]
   },
   "qwen17": {
-    "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-    "revision": "fd4b254389122332181a7c3db7f27e918eec64e3",
+    "repo": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-8bit",
+    "revision": "e7dd0585652209fa0d7783659aad4e8a324de11c",
     "kind": "tts",
-    "bits": 16,
     "files": [
       {
         "path": "config.json",
-        "size": 4494,
+        "size": 5522,
         "sha256": null,
-        "git_sha1": "81b57e8e790c07e8fa7f82d8bdfd7574d485c396"
+        "git_sha1": "36b8a24e92df110d96c717bade8bd91b20208b84"
       },
       {
         "path": "generation_config.json",
@@ -336,9 +340,15 @@
       },
       {
         "path": "model.safetensors",
-        "size": 3857413744,
-        "sha256": "38fc7fc51c5e776e840414b6fd443962e9411b9654888fd7913e4da643cb857c",
-        "git_sha1": "ddd8a08fb25fddc128a33dd3f7352c778acce927"
+        "size": 2417320525,
+        "sha256": "b965c581ccf6aa852a4124feeb7a8a111542ee7b213139368b4cc7ba7fd4728b",
+        "git_sha1": "33cbb95f10677b919d3df966429160933c615950"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 78070,
+        "sha256": null,
+        "git_sha1": "9f6fb726a3de0d84da25b6c4ecd85f0ef3b6e2cf"
       },
       {
         "path": "preprocessor_config.json",
@@ -618,7 +628,7 @@
     "repo": "mlx-community/whisper-large-v3-asr-fp16",
     "revision": "f4b9d561e7f1a5c0587726ff7ff03da2cc80fcf9",
     "kind": "stt",
-    "bits": 16,
+    "quantizeOnLoad": true,
     "files": [
       {
         "path": "added_tokens.json",
@@ -805,16 +815,15 @@
     ]
   },
   "qwen06Custom": {
-    "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
-    "revision": "85e237c12c027371202489a0ec509ded67b5e4b5",
+    "repo": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit",
+    "revision": "049ef77fe8816b536193c0c25f9a214d17921282",
     "kind": "tts",
-    "bits": 16,
     "files": [
       {
         "path": "config.json",
-        "size": 4908,
+        "size": 6058,
         "sha256": null,
-        "git_sha1": "5e8d5fc100536984e3a89bd87ef08e59e322b29b"
+        "git_sha1": "f41acc3813e68cfa5e683412db8baeb97dbd5c29"
       },
       {
         "path": "generation_config.json",
@@ -830,9 +839,15 @@
       },
       {
         "path": "model.safetensors",
-        "size": 1811626576,
-        "sha256": "bc3c7e785eb961179c25450d1acff03f839e0002f2f3a5aeb67b5735c0fa2adb",
-        "git_sha1": "7fcbae5382ce4359e3b538bad87c7bad6b931050"
+        "size": 1286743170,
+        "sha256": "3bcb2c4a127e6243e81a30b7126c7865f686d3559de4f938e5d3b150c6a9560d",
+        "git_sha1": "e18d8cca59a3a6c873c3f563a6974e6c35035a0b"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 71447,
+        "sha256": null,
+        "git_sha1": "052700b2b4b0904b445ed8167fbeb47826f07f25"
       },
       {
         "path": "preprocessor_config.json",
@@ -879,16 +894,15 @@
     ]
   },
   "qwen17Custom": {
-    "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-    "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe",
+    "repo": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit",
+    "revision": "41d3337e8b7f2843a75841595fc14e4b9a7a4b96",
     "kind": "tts",
-    "bits": 16,
     "files": [
       {
         "path": "config.json",
-        "size": 4908,
+        "size": 6058,
         "sha256": null,
-        "git_sha1": "95d74b20b7485f5dfa09d05988d6c606ec226811"
+        "git_sha1": "85a45518a8c20295dc0a15f6d35223d203ce31b8"
       },
       {
         "path": "generation_config.json",
@@ -904,9 +918,15 @@
       },
       {
         "path": "model.safetensors",
-        "size": 3833402552,
-        "sha256": "38b1d5971bdbd982b561cccec982669a53b0537c3cf5e9bd4778ed07bb2f5137",
-        "git_sha1": "c01bc81874a6a96fb082d716ce06c87420f01ece"
+        "size": 2393308931,
+        "sha256": "b696f4bf45f54497b6de758981e76f1410bd68af05a657477dee466b0202df1a",
+        "git_sha1": "fe2382fab5cd050f80f8212fa1f415f06166afc3"
+      },
+      {
+        "path": "model.safetensors.index.json",
+        "size": 71786,
+        "sha256": null,
+        "git_sha1": "00d72d3b1f0a86f8f0d2ba37646953f2e6b82691"
       },
       {
         "path": "preprocessor_config.json",

@@ -57,15 +57,38 @@ def valid_file(path, entry):
     return digest.hexdigest() == (entry.get('sha256') or entry['git_sha1'])
 
 
+def model_directory(key, root):
+    return Path(root) / 'MLX' / f"{key}-{CATALOG[key]['revision'][:12]}"
+
+
+def downloaded(key, root):
+    directory = model_directory(key, root)
+    return all((directory / f['path']).is_file() and (directory / f['path']).stat().st_size == f['size'] for f in CATALOG[key]['files'])
+
+
+def stamp(path, entry):
+    stat = path.stat()
+    return [stat.st_size, stat.st_mtime_ns, entry.get('sha256') or entry['git_sha1']]
+
+
 def prepare_model(key, root):
     import certifi
     asset = CATALOG[key]
-    directory = Path(root) / 'MLX' / f"{key}-{asset['revision'][:12]}"
+    directory = model_directory(key, root)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     context = ssl.create_default_context(cafile=certifi.where())
+    # Hash each file once; later loads trust it while its size and mtime are unchanged.
+    marker = directory / '.verified.json'
+    try:
+        cache = json.loads(marker.read_text())
+    except (OSError, ValueError):
+        cache = {}
     for entry in asset['files']:
         dest = directory / entry['path']
+        if dest.is_file() and cache.get(entry['path']) == stamp(dest, entry):
+            continue
         if valid_file(dest, entry):
+            cache[entry['path']] = stamp(dest, entry)
             continue
         dest.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         url = f"https://huggingface.co/{entry.get('repo', asset['repo'])}/resolve/{entry.get('revision', asset['revision'])}/{entry['path']}"
@@ -78,8 +101,13 @@ def prepare_model(key, root):
             if not valid_file(Path(temporary), entry):
                 raise ValueError('model integrity mismatch')
             os.replace(temporary, dest)
+            cache[entry['path']] = stamp(dest, entry)
         finally:
             Path(temporary).unlink(missing_ok=True)
+    try:
+        marker.write_text(json.dumps(cache))
+    except OSError:
+        pass
     if key != 'supertonic3':
         config = json.loads((directory / 'config.json').read_text())
         bits = config.get('quantization', config.get('quantization_config', {})).get('bits')
@@ -120,6 +148,12 @@ def load_model(request):
                 from mlx_audio.tts.utils import load_model as load
             if key != 'supertonic3':
                 MODEL = load(directory if key == 'chatterV3' else str(directory))
+            if CATALOG[key].get('quantizeOnLoad') and key != 'chatterV3':
+                # No faithful 8-bit upload exists for this model; quantize the FP16 weights in memory.
+                import mlx.nn as nn
+                nn.quantize(MODEL, group_size=64, bits=8, class_predicate=lambda path, module:
+                    hasattr(module, 'to_quantized') and module.weight.shape[-1] % 64 == 0)
+                mx.eval(MODEL.parameters())
         if key in ('qwen06', 'qwen17', 'qwen06Custom', 'qwen17Custom') and (MODEL.tokenizer is None or MODEL.speech_tokenizer is None):
             MODEL = None
             raise ValueError('missing local tokenizer')
@@ -159,7 +193,7 @@ def model_access(root):
 
 
 def handle(request):
-    if request.get('command') in ('prepare', 'load'):
+    if request.get('command') in ('prepare', 'load', 'preload'):
         with model_access(request['root']):
             return handle_model_request(request)
     return handle_model_request(request)
@@ -174,6 +208,11 @@ def handle_model_request(request):
         return {'ok': True, 'bits': CATALOG[request['model']].get('bits', 8)}
     if command == 'load':
         return load_model(request)
+    if command == 'preload':
+        # Warm only models already on disk; never start a download in the background.
+        if request['model'] not in CATALOG or not downloaded(request['model'], request['root']):
+            return {'ok': True, 'loaded': False}
+        return {**load_model(request), 'loaded': True}
     if MODEL is None:
         raise ValueError('model not loaded')
     mx = None

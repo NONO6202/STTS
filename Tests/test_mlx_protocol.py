@@ -94,7 +94,7 @@ class ProtocolTests(unittest.TestCase):
         with patch.object(worker, 'prepare_model') as prepare:
             result = worker.handle_model_request({'command': 'prepare', 'model': 'large', 'root': '/unused'})
         prepare.assert_called_once_with('large', '/unused')
-        self.assertEqual(result, {'ok': True, 'bits': 16})
+        self.assertEqual(result, {'ok': True, 'bits': 8})
     def test_model_download_and_load_hold_shared_storage_lock(self):
         with tempfile.TemporaryDirectory() as root:
             def checked(request):

@@ -4,7 +4,7 @@ import Carbon
 
 enum Preferences {
     static var defaults: UserDefaults {
-        Bundle.main.bundleIdentifier == "local.stts.runtime" ? BackgroundRuntime.preferences : .standard
+        Bundle.main.bundleIdentifier == "local.stts.runtime" || Edition.isDemo ? BackgroundRuntime.preferences : .standard
     }
     static func read<T: Decodable>(_ key: String, fallback: T) -> T {
         guard let data = defaults.data(forKey: key), let value = try? JSONDecoder().decode(T.self, from: data) else { return fallback }
@@ -64,6 +64,15 @@ struct SurfaceStyle: Codable, Equatable {
     static let captions = SurfaceStyle(background: Tint(hex: AppContract.shared.defaults.captionBg), foreground: Tint(hex: AppContract.shared.defaults.captionColor), opacity: AppContract.shared.defaults.captionAlpha)
 }
 
+struct MicrophonePreset: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var name: String
+    var pitch: Double
+    var filter: String
+    var strength: Double
+    var hotkey: Shortcut?
+}
+
 struct Shortcut: Codable, Equatable {
     let keyCode: UInt32
     let modifiers: UInt
@@ -71,6 +80,7 @@ struct Shortcut: Codable, Equatable {
     static let initial = Shortcut(keyCode: UInt32(kVK_ANSI_Grave), modifiers: 0, key: "`")
     static let captionInitial = Shortcut(keyCode: UInt32(kVK_ANSI_S), modifiers: NSEvent.ModifierFlags([.control, .option]).rawValue, key: "s")
     var flags: NSEvent.ModifierFlags { NSEvent.ModifierFlags(rawValue: modifiers) }
+    func matches(_ other: Shortcut) -> Bool { keyCode == other.keyCode && modifiers == other.modifiers }
     var valid: Bool {
         let functionKeys: Set<UInt32> = [122,120,99,118,96,97,98,100,101,109,103,111,105,107,113,106,64,79,80,90]
         return !flags.intersection([.command, .control, .option]).isEmpty || functionKeys.contains(keyCode) || (keyCode == UInt32(kVK_ANSI_Grave) && modifiers == 0)

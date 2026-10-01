@@ -1,4 +1,4 @@
-﻿param([switch]$SkipDependencies, [switch]$SkipInstaller, [switch]$Steam, [string]$Compiler = "")
+﻿param([switch]$SkipDependencies, [switch]$SkipInstaller, [switch]$Steam, [switch]$Demo, [string]$Compiler = "")
 $ErrorActionPreference = 'Stop'
 $Product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Shared\app.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $Version = $Product.version
@@ -76,6 +76,9 @@ Copy-Item 'build\frozen\STTSWorker\*' 'build\bundle\Engine' -Recurse -Force
 Copy-Item 'build\bundle\STTSGPU.exe' 'build\bundle\Engine\STTSGPU.exe' -Force
 Copy-Item 'build\frozen\STTSRuntime\*' 'build\bundle' -Recurse -Force
 Copy-Item 'build\frozen\STTS.exe' 'build\bundle\STTS.exe' -Force
+# Steam achievements: the redistributable Steamworks library beside STTS.exe (steam.py), when available.
+$SteamApi = if ($env:STEAMWORKS_SDK) { Join-Path $env:STEAMWORKS_SDK 'redistributable_bin\win64\steam_api64.dll' } else { 'vendor\steam_api64.dll' }
+if (Test-Path $SteamApi) { Copy-Item $SteamApi 'build\bundle\steam_api64.dll' -Force } else { Write-Warning 'Steamworks SDK not found; building without Steam achievements.' }
 Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 @{
     version = $Version
@@ -87,13 +90,18 @@ Invoke-Checked $Python @('collect_licenses.py', 'build\bundle\Licenses')
 } | ConvertTo-Json | Set-Content -LiteralPath $BuildMarker -Encoding utf8
 if ($Steam) {
     # Steam installs this folder as-is. STTS installs VB-CABLE from it on first launch (driver_setup.py).
-    $SteamRoot = Join-Path $PSScriptRoot 'build\steam'
+    $SteamRoot = Join-Path $PSScriptRoot $(if ($Demo) { 'build\steam-demo' } else { 'build\steam' })
     if (Test-Path $SteamRoot) { Remove-Item -LiteralPath $SteamRoot -Recurse -Force }
     New-Item -ItemType Directory -Force $SteamRoot | Out-Null
     Copy-Item 'build\bundle\*' $SteamRoot -Recurse -Force
     Remove-Item -LiteralPath (Join-Path $SteamRoot 'build-complete.json') -ErrorAction SilentlyContinue
     Copy-Item 'build\VB-CABLE' (Join-Path $SteamRoot 'VB-CABLE') -Recurse -Force
     Copy-Item 'VB-CABLE-NOTICE.txt', '..\README.md' $SteamRoot -Force
+    # The demo is the same bundle with this marker next to Shared\app.json (config.py reads it).
+    if ($Demo) {
+        '{"demo": true}' | Set-Content -LiteralPath (Join-Path $SteamRoot '_internal\Shared\edition.json') -Encoding ascii
+        Remove-Item -LiteralPath (Join-Path $SteamRoot 'steam_api64.dll') -ErrorAction SilentlyContinue  # The demo has no achievements.
+    }
     Write-Host "Steam depot content: $SteamRoot"
     return
 }

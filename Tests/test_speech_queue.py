@@ -2,6 +2,8 @@ import sys
 import threading
 import types
 import unittest
+
+import numpy  # noqa: F401  Loaded once; patch.dict(sys.modules) would otherwise drop it between tests.
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -57,6 +59,26 @@ class SpeechQueueTests(unittest.TestCase):
         a.finish_tts(a.audio_stop, 'synthesis failed', True)
         self.assertEqual(a.tts_queue, []); self.assertEqual(self.work, [])
         a.status.setText.assert_called_with('synthesis failed')
+
+    def test_skip_drops_the_current_sentence_and_plays_the_next(self):
+        a = self.app; current = a.audio_stop
+        self.submit('second'); self.submit('third')
+        a.skip_tts()
+        self.assertTrue(current.is_set()); self.assertEqual(len(a.tts_queue), 2)
+        a.finish_tts(current, 'late output')  # the skipped worker job reports back
+        while self.work: self.work.pop(0)()
+        self.assertEqual([c.args[0]['text'] for c in a.tts_worker.request.call_args_list], ['second', 'third'])
+        self.assertFalse(a.tts_busy)
+
+    def test_skip_without_a_queue_cancels(self):
+        a = self.app; a.make_tts_worker = Mock(return_value=Mock())
+        a.skip_tts()
+        self.assertFalse(a.tts_busy); self.assertTrue(a.audio_stop.is_set() or a.tts_queue == [])
+
+    def test_sent_inputs_are_remembered_newest_last_without_duplicates(self):
+        a = self.app
+        for text in ['one', 'two', 'one']: self.submit(text)
+        self.assertEqual(list(a.sent_history), ['two', 'one'])
 
     def test_invalid_input_does_not_enter_queue_or_clear_draft(self):
         for text in ['', ' ' * 3, 'a' * 501]: self.submit(text).clear.assert_not_called()
