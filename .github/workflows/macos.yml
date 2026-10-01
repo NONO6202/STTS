@@ -1,0 +1,24 @@
+name: macOS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: brew install uv python whisper-cpp ggml libomp
+      - name: Test speech segmentation and audio defaults
+        run: |
+          source Support/swift-env.sh
+          uv venv .venv --python /opt/homebrew/bin/python3
+          swift test -c release --disable-xctest --filter DefaultAudioDevicesTests -j 3
+          # These two integration tests need an interactive desktop and Core Audio devices.
+          swift test -c release --disable-xctest --filter SegmentationTests --skip 'composerClosesForRelativeMotionAndOutsideClicks|virtualMicrophoneChecksMuteAndOwnProcessBeforePlayback' -j 3
+      - name: Build application and DMG
+        run: bash Support/build-macos.sh
+      - name: Test worker protocol
+        run: .venv/bin/python -m unittest discover -s Tests -p 'test_mlx_protocol.py'

@@ -1,0 +1,571 @@
+{
+  "supertonic3": {
+    "repo": "Supertone/supertonic-3",
+    "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+    "kind": "tts",
+    "bits": 8,
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 15007,
+        "sha256": null,
+        "git_sha1": "1e2cbe6cef94c8cdf3ed1fcebc0f5317ca7ad5a1"
+      },
+      {
+        "path": "onnx/duration_predictor.onnx",
+        "size": 3700147,
+        "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db",
+        "git_sha1": "3dc0f3ca70185b0ecb20ee812832fa8fd87d5f77"
+      },
+      {
+        "path": "onnx/text_encoder.onnx",
+        "size": 36416150,
+        "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff",
+        "git_sha1": "001b50875741258a8681a472d63929b2e18abe55"
+      },
+      {
+        "path": "onnx/tts.json",
+        "size": 8253,
+        "sha256": null,
+        "git_sha1": "28575b0793c92607a0f0a292550df9bd17709a79"
+      },
+      {
+        "path": "onnx/unicode_indexer.json",
+        "size": 277676,
+        "sha256": null,
+        "git_sha1": "3aaf4d33024aff0be455633c24b3636b3a810150"
+      },
+      {
+        "path": "onnx/vector_estimator.onnx",
+        "size": 78400833,
+        "sha256": "20cd86fa5c6effedfda0e7cffe5b0569ca401c440a0c3a1d72bf39286c0db3fd",
+        "git_sha1": "f1e72dac1cc5bccc3a71d08c5bc30a31798c96ac",
+        "repo": "csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
+        "revision": "cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4",
+        "remote_path": "vector_estimator.int8.onnx"
+      },
+      {
+        "path": "onnx/vocoder.onnx",
+        "size": 25991073,
+        "sha256": "e923d60f53f95eb1ce235f1dc33ec56d9c057823c96fa6f8acf98f32b0da6152",
+        "git_sha1": "c293b6b1a51126c69110c7949d1e22e75a77c147",
+        "repo": "csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
+        "revision": "cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4",
+        "remote_path": "vocoder.int8.onnx"
+      },
+      {
+        "path": "voice_styles/F1.json",
+        "size": 292046,
+        "sha256": null,
+        "git_sha1": "421365f307ed1535d8da16845031d0e9fa3e60c5"
+      },
+      {
+        "path": "voice_styles/F2.json",
+        "size": 292423,
+        "sha256": null,
+        "git_sha1": "b09a3a433df8a4856d1d7d64736a56ddf37a4ea3"
+      },
+      {
+        "path": "voice_styles/F3.json",
+        "size": 290794,
+        "sha256": null,
+        "git_sha1": "a366f94c77c4b440404071f1a52bed3ccf83a5ff"
+      },
+      {
+        "path": "voice_styles/F4.json",
+        "size": 291808,
+        "sha256": null,
+        "git_sha1": "39c78a52795320c6101b7eaf984c0e2352fbdc18"
+      },
+      {
+        "path": "voice_styles/F5.json",
+        "size": 291479,
+        "sha256": null,
+        "git_sha1": "06983f8816ad00a8eeb7efd37a33d457587e16f8"
+      },
+      {
+        "path": "voice_styles/M1.json",
+        "size": 291748,
+        "sha256": null,
+        "git_sha1": "bddfff85a7c4c140c11620bd7005d86681dccdac"
+      },
+      {
+        "path": "voice_styles/M2.json",
+        "size": 292055,
+        "sha256": null,
+        "git_sha1": "602ff6c4d6d48cdb71c37461f7c175d71fe8b34b"
+      },
+      {
+        "path": "voice_styles/M3.json",
+        "size": 290198,
+        "sha256": null,
+        "git_sha1": "000b60436b77619b933fdc33628ad737595e6794"
+      },
+      {
+        "path": "voice_styles/M4.json",
+        "size": 291522,
+        "sha256": null,
+        "git_sha1": "aae253ae81185fa06a6469c3f1cdff04ed121ddf"
+      },
+      {
+        "path": "voice_styles/M5.json",
+        "size": 291469,
+        "sha256": null,
+        "git_sha1": "0536b252698830f8536c077edcb94e1ce4768ab6"
+      }
+    ],
+    "precision": "INT8 vector estimator + vocoder / FP32 text encoder + duration predictor",
+    "format": "onnx-mixed-int8",
+    "variant": "int8-v1"
+  },
+  "qwen06": {
+    "repo": "Rin247/Qwen3-TTS-12Hz-0.6B-Base-INT8",
+    "revision": "2d1dc6a7cf4b3518eeb854d3a82039b73ba03be3",
+    "kind": "tts",
+    "bits": 8,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 18061,
+        "sha256": null,
+        "git_sha1": "399f8a2f227a289c02c4a49f98d62ed33c5e0260"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1304033212,
+        "sha256": "4a0166086e0d129f5b9b865a215bce492f49662b7dbe2b02f270f843f61805fb",
+        "git_sha1": "07a1e33fd7a38da28c5ab49553a4be813c14f5a7"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+        "revision": "5d83992436eae1d760afd27aff78a71d676296fc"
+      }
+    ],
+    "precision": "INT8 linear weights / floating-point embeddings and codec",
+    "format": "qwen-int8-scalar"
+  },
+  "qwen17": {
+    "repo": "Rin247/Qwen3-TTS-12Hz-1.7B-Base-INT8",
+    "revision": "9b9c7b872ce8c4c221850083bf959ef3c54ace59",
+    "kind": "tts",
+    "bits": 8,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 18124,
+        "sha256": null,
+        "git_sha1": "3d6c59a1115f754a5715365cc46b085100e26bf8"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 2359024032,
+        "sha256": "d78c92939d186df5b24ed9b5ce6ea76c74f2bce08a277e4d48f74b9244def1d9",
+        "git_sha1": "34d139deab8ea36e0e00efc95d88107f6041c441"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "fd4b254389122332181a7c3db7f27e918eec64e3"
+      }
+    ],
+    "precision": "INT8 linear weights / floating-point embeddings and codec",
+    "format": "qwen-int8-scalar"
+  },
+  "qwen06Custom": {
+    "repo": "Rin247/Qwen3-TTS-12Hz-0.6B-CustomVoice-INT8",
+    "revision": "c36bc6c394eece757baa32a7204c1e9d2ffefb37",
+    "kind": "tts",
+    "bits": 8,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 18499,
+        "sha256": null,
+        "git_sha1": "ed489e8216eccf9ed237b6b3461615761134bcc7"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1286315476,
+        "sha256": "618349ad8fdbc88b32202f029165593cb647f97772d34bbd24316c7924a80606",
+        "git_sha1": "fe00ad601921830356a78283502f77f9904737d2"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        "revision": "85e237c12c027371202489a0ec509ded67b5e4b5"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        "revision": "85e237c12c027371202489a0ec509ded67b5e4b5"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        "revision": "85e237c12c027371202489a0ec509ded67b5e4b5"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592",
+        "repo": "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        "revision": "85e237c12c027371202489a0ec509ded67b5e4b5"
+      }
+    ],
+    "precision": "INT8 linear weights / floating-point embeddings and codec",
+    "format": "qwen-int8-scalar"
+  },
+  "qwen17Custom": {
+    "repo": "Rin247/Qwen3-TTS-12Hz-1.7B-CustomVoice-INT8",
+    "revision": "1eb3c90cf786177337a9b7567df9d646505cf454",
+    "kind": "tts",
+    "bits": 8,
+    "files": [
+      {
+        "path": "config.json",
+        "size": 18562,
+        "sha256": null,
+        "git_sha1": "6492e004039614991392424f223ba43a75e12100"
+      },
+      {
+        "path": "generation_config.json",
+        "size": 245,
+        "sha256": null,
+        "git_sha1": "1872b16d4535564abf2db5d6debe6cddd82b7f2e"
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671839,
+        "sha256": null,
+        "git_sha1": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+      },
+      {
+        "path": "model.safetensors",
+        "size": 2335012800,
+        "sha256": "7bd9d0303a81e994607e7d379af7cce44bd7f61c18467b708cd77fd98492719d",
+        "git_sha1": "183ea3044b4200bcaa42e3909e4e63ff1511b866"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 127,
+        "sha256": null,
+        "git_sha1": "0525dd953bb9241912f7147666f0d535165d5d4f"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 7344,
+        "sha256": null,
+        "git_sha1": "6ff9fd60cc623bb54bbd603cbd418c97a11528d7"
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null,
+        "git_sha1": "4783fe10ac3adce15ac8f358ef5462739852c569"
+      },
+      {
+        "path": "speech_tokenizer/config.json",
+        "size": 2336,
+        "sha256": null,
+        "git_sha1": "06cc8dc4c5ec8a1929086b71b98c313020d9268b",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe"
+      },
+      {
+        "path": "speech_tokenizer/configuration.json",
+        "size": 76,
+        "sha256": null,
+        "git_sha1": "ab58e2eaf53cd14a1a2a7527d9261ceea93a24cd",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe"
+      },
+      {
+        "path": "speech_tokenizer/model.safetensors",
+        "size": 682293092,
+        "sha256": "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258",
+        "git_sha1": "026d66bfb5d730dcfd56450c5e9e51b3ef4e0712",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe"
+      },
+      {
+        "path": "speech_tokenizer/preprocessor_config.json",
+        "size": 234,
+        "sha256": null,
+        "git_sha1": "ba40914f4f49ab98a8ca545d4892ef7291a39592",
+        "repo": "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        "revision": "0c0e3051f131929182e2c023b9537f8b1c68adfe"
+      }
+    ],
+    "precision": "INT8 linear weights / floating-point embeddings and codec",
+    "format": "qwen-int8-scalar"
+  },
+  "small": {
+    "repo": "twmht/faster-whisper-small-int8",
+    "revision": "bcd0b9a4617fab4cc3af508435b2c9b0a41708b3",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "config.json",
+        "size": 2370,
+        "sha256": null,
+        "git_sha1": "e5047537059bd8f182d9ca64c470201585015187"
+      },
+      {
+        "path": "model.bin",
+        "size": 248203797,
+        "sha256": "ca732cb1379efc49417d028465f543d83a39de2c61f3027678de103dc404ce73",
+        "git_sha1": "ca906a1273fa62719c6d5c6dacb5c464d009fdc8"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2480466,
+        "sha256": null,
+        "git_sha1": "1e95340ff836fad1b5932e800fb7b8c5e6d78a74"
+      },
+      {
+        "path": "vocabulary.json",
+        "size": 1068103,
+        "sha256": null,
+        "git_sha1": "4f1403081291fea94e565ed322786d6e7d89246d"
+      }
+    ],
+    "bits": 8,
+    "precision": "INT8",
+    "format": "ctranslate2"
+  },
+  "turbo": {
+    "repo": "vokasug/faster-whisper-large-v3-turbo-int8",
+    "revision": "955eeeca9313352edb2ee4857ac836e599722da0",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "config.json",
+        "size": 2263,
+        "sha256": null,
+        "git_sha1": "0351d1d6870005e865747b781b5d7c23ea0459cd"
+      },
+      {
+        "path": "model.bin",
+        "size": 814054531,
+        "sha256": "7482f978f9493b93b3d0bf68a148a1a62ca02547e8ee981358ff8ef2de8a9418",
+        "git_sha1": "02a76c4a483e72408c9b57da2fb57d7e30417915"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 340,
+        "sha256": null,
+        "git_sha1": "931c77a740890c46365c7ae0c9d350ba3cca908f"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2710337,
+        "sha256": null,
+        "git_sha1": "17456db595adc78a973f97d69d8cb50bc87c0b1c"
+      },
+      {
+        "path": "vocabulary.json",
+        "size": 1068114,
+        "sha256": null,
+        "git_sha1": "0adcd01e7c237205d593b707e66dd5d7bc785d2d"
+      }
+    ],
+    "bits": 8,
+    "precision": "INT8",
+    "format": "ctranslate2"
+  },
+  "large": {
+    "repo": "ellisd/faster-whisper-large-v3-int8",
+    "revision": "288a12cb819fcf5566fabcc0a53a8e16864254bd",
+    "kind": "stt",
+    "files": [
+      {
+        "path": "config.json",
+        "size": 2394,
+        "sha256": null,
+        "git_sha1": "75336feae814999bae6ccccdecf177639ffc6f9d"
+      },
+      {
+        "path": "model.bin",
+        "size": 1556722579,
+        "sha256": "6102b080cf9cfaf223896412cbd74202847e72112a723222698113f32fdc2eb2",
+        "git_sha1": "dd6a562add20c1ac119aeb5cb52a328afa3fdc97"
+      },
+      {
+        "path": "preprocessor_config.json",
+        "size": 340,
+        "sha256": null,
+        "git_sha1": "931c77a740890c46365c7ae0c9d350ba3cca908f"
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 2480617,
+        "sha256": null,
+        "git_sha1": "3a5e2ba63acdcac9a19ba56cf9bd27f185bfff61"
+      },
+      {
+        "path": "vocabulary.json",
+        "size": 1068114,
+        "sha256": null,
+        "git_sha1": "0adcd01e7c237205d593b707e66dd5d7bc785d2d"
+      }
+    ],
+    "bits": 8,
+    "precision": "INT8",
+    "format": "ctranslate2"
+  }
+}

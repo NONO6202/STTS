@@ -1,0 +1,340 @@
+{
+  "build": 15,
+  "caption": {
+    "expiry_seconds": 10,
+    "history": 100,
+    "padding": 14,
+    "radius": 14,
+    "visible": 2,
+    "width": 750
+  },
+  "close_actions": [
+    "백그라운드 실행",
+    "최소화"
+  ],
+  "defaults": {
+    "background": true,
+    "caption_alpha": 0.8,
+    "caption_bg": "#000000",
+    "caption_color": "#ffffff",
+    "caption_font": 21,
+    "caption_y": 90,
+    "close": "백그라운드 실행",
+    "login": true,
+    "outside": true,
+    "shake": true,
+    "shake_sensitivity": "보통",
+    "stt": "기본",
+    "tts": "기본",
+    "tts_enabled": true,
+    "voice": "Sohee",
+    "voice_monitoring": false,
+    "volume": 1,
+    "window_alpha": 0.95,
+    "window_bg": "#f7f7f7",
+    "window_color": "#1f1f1f",
+    "pitch": 0,
+    "speed": 1,
+    "keep_draft": true
+  },
+  "language_order": [
+    "ko",
+    "ko-KR",
+    "en",
+    "en-US",
+    "en-GB",
+    "ja",
+    "ja-JP",
+    "gl",
+    "yue",
+    "gu",
+    "el",
+    "nl",
+    "nl-NL",
+    "ne",
+    "no",
+    "nn",
+    "nb-NO",
+    "da",
+    "da-DK",
+    "de",
+    "de-DE",
+    "lo",
+    "lv",
+    "la",
+    "ru",
+    "ru-RU",
+    "ro",
+    "ro-RO",
+    "lb",
+    "lt",
+    "ln",
+    "mr",
+    "mi",
+    "mk",
+    "mg",
+    "ml",
+    "ms",
+    "mt",
+    "mn",
+    "ba",
+    "eu",
+    "my",
+    "vi",
+    "vi-VN",
+    "be",
+    "bn",
+    "bs",
+    "bg",
+    "bg-BG",
+    "br",
+    "sa",
+    "sr",
+    "so",
+    "sn",
+    "su",
+    "sw",
+    "sv",
+    "sv-SE",
+    "es",
+    "es-US",
+    "es-ES",
+    "sk",
+    "sk-SK",
+    "sl",
+    "sd",
+    "si",
+    "ar",
+    "ar-AR",
+    "hy",
+    "as",
+    "is",
+    "ht",
+    "az",
+    "af",
+    "sq",
+    "am",
+    "et",
+    "et-EE",
+    "oc",
+    "yo",
+    "ur",
+    "uz",
+    "uk",
+    "uk-UA",
+    "cy",
+    "yi",
+    "it",
+    "it-IT",
+    "id",
+    "jw",
+    "ka",
+    "zh",
+    "zh-TW",
+    "zh-CN",
+    "cs",
+    "cs-CZ",
+    "kk",
+    "ca",
+    "kn",
+    "hr",
+    "hr-HR",
+    "km",
+    "tl",
+    "ta",
+    "tg",
+    "tt",
+    "th",
+    "te",
+    "tk",
+    "tr",
+    "tr-TR",
+    "bo",
+    "ps",
+    "pa",
+    "fo",
+    "fa",
+    "pt",
+    "pt-BR",
+    "pt-PT",
+    "pl",
+    "pl-PL",
+    "fr",
+    "fr-CA",
+    "fr-FR",
+    "fi",
+    "fi-FI",
+    "fil",
+    "haw",
+    "ha",
+    "hu",
+    "hu-HU",
+    "he",
+    "iw",
+    "hi",
+    "hi-IN"
+  ],
+  "limits": {
+    "recording_max": 30,
+    "recording_min": 3,
+    "text": 500,
+    "transcript": 1000,
+    "voice_peak": 0.001
+  },
+  "onboarding": {
+    "button": "사용 시작",
+    "sections": [
+      {
+        "text": "Discord → 설정 → 음성 및 비디오 → 입력 장치에서 STTS를 선택하세요.\n\n출력 장치는 평소 사용하는 헤드셋·스피커를 선택하세요.\n\nDiscord → 음성 및 비디오 → 입력 프로필을 ‘스튜디오’로 설정하는 것을 권장합니다.",
+        "title": "1. Discord 연결"
+      },
+      {
+        "text": "STTS에서 TTS 사용을 켜고 입력 단축키로 입력창을 열어 문장을 보내세요.",
+        "title": "2. 문장 보내기"
+      },
+      {
+        "title": "3. 하단 도구 사용",
+        "text": "보이스 클론: 원하는 목소리를 등록하세요.\nTTS 단축어: 자주 쓰는 문장을 저장하세요.\n사운드보드: 음성 파일을 등록해 가상 마이크로 재생하세요."
+      }
+    ],
+    "title": "STTS 처음 설정"
+  },
+  "settings": [
+    {
+      "id": "runtime",
+      "symbol": "power",
+      "title": "실행"
+    },
+    {
+      "id": "input",
+      "symbol": "keyboard",
+      "title": "입력창 동작"
+    },
+    {
+      "id": "models",
+      "symbol": "internaldrive",
+      "title": "모델 관리"
+    }
+  ],
+  "shake_sensitivities": {
+    "낮음": 2,
+    "높음": 0.6,
+    "보통": 1
+  },
+  "stt_tiers": [
+    {
+      "model": "turbo",
+      "title": "기본"
+    },
+    {
+      "model": "small",
+      "title": "낮음"
+    },
+    {
+      "model": "large",
+      "title": "높음"
+    }
+  ],
+  "tabs": [
+    "TTS",
+    "마이크",
+    "STT",
+    "설정"
+  ],
+  "tts_tiers": [
+    {
+      "model": "gtts",
+      "title": "기본"
+    },
+    {
+      "model": "supertonic3",
+      "title": "낮음"
+    },
+    {
+      "model": "qwen06",
+      "title": "중간"
+    },
+    {
+      "model": "qwen17",
+      "title": "높음"
+    }
+  ],
+  "version": "0.1.0",
+  "voices": {
+    "gtts": [],
+    "qwen": [
+      "Sohee",
+      "Vivian",
+      "Serena",
+      "Uncle_Fu",
+      "Dylan",
+      "Eric",
+      "Ryan",
+      "Aiden",
+      "Ono_Anna"
+    ],
+    "supertonic3": [
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5"
+    ]
+  },
+  "window": {
+    "height": 740,
+    "padding": 24,
+    "spacing": 20,
+    "tabs_width": 384,
+    "width": 600
+  },
+  "model_names": {
+    "base": "STT · Whisper Base",
+    "small": "STT · Whisper Small",
+    "turbo": "STT · Whisper Large-v3-Turbo",
+    "large": "STT · Whisper Large-v3",
+    "nemotron": "STT · Nemotron 3.5 ASR 0.6B",
+    "asr06": "STT · Qwen3-ASR 0.6B",
+    "asr17": "STT · Qwen3-ASR 1.7B",
+    "qwen06": "TTS · Qwen3-TTS 0.6B Base",
+    "qwen17": "TTS · Qwen3-TTS 1.7B Base",
+    "supertonic3": "TTS · Supertonic 3",
+    "qwen06Custom": "TTS · Qwen3-TTS 0.6B CustomVoice",
+    "qwen17Custom": "TTS · Qwen3-TTS 1.7B CustomVoice",
+    "chatter": "TTS · Chatterbox (이전 모델)",
+    "chatterV3": "TTS · Chatterbox Multilingual V3",
+    "vox": "TTS · VoxCPM2"
+  },
+  "theme": {
+    "accent": "#3182f6",
+    "card_radius": 14,
+    "control_radius": 6,
+    "page_padding": 24,
+    "page_top": 72,
+    "row_height": 44,
+    "row_inset": 16,
+    "section_gap": 22
+  },
+  "tools": [
+    {
+      "id": "voice",
+      "title": "보이스 클론",
+      "symbol": "waveform"
+    },
+    {
+      "id": "phrases",
+      "title": "TTS 단축어",
+      "symbol": "text.bubble"
+    },
+    {
+      "id": "soundboard",
+      "title": "사운드보드",
+      "symbol": "square.grid.2x2"
+    }
+  ]
+}

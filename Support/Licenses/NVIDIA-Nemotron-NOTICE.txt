@@ -1,0 +1,7 @@
+Licensed by NVIDIA Corporation under the NVIDIA Open Model License
+
+Model: mlx-community/nemotron-3.5-asr-streaming-0.6b-8bit
+Revision: 7279359e4481b5e9e185a318bd618e429c6d86cd
+Original model: NVIDIA Nemotron 3.5 ASR Streaming 0.6B
+MLX conversion by ARahim3 / MLX Audio contributors.
+The pinned conversion identifies NVIDIA Open Model License. The current upstream model card separately identifies OpenMDW-1.1; do not silently replace the conversion notice.

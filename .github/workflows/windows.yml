@@ -1,0 +1,30 @@
+name: Windows
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build app and bundled virtual microphone installer
+        id: package
+        shell: pwsh
+        run: ./Windows/build.ps1
+      - name: Run regression tests
+        id: tests
+        shell: pwsh
+        run: |
+          ./Windows/test-audio-defaults.ps1
+          Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_windows*.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Windows/build-env/Scripts/python.exe -m unittest discover -s Tests -p "test_tts_phrases.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify packaged app, driver, speech and capture
+        shell: pwsh
+        run: ./Windows/verify.ps1 -InstallOnDisposableRunner
