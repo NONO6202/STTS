@@ -7,6 +7,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import numpy as np
 import psutil
 import sounddevice as sd
@@ -124,6 +125,7 @@ class MicrophonePassthrough:
         self._thread = None
         self._stopped = threading.Event()
         self._failed = False
+        self._capture_progress_at = self._render_progress_at = 0.0
         self.buffer = MicrophoneBuffer()
         self.volume = 1.0
         self.effects = None
@@ -131,8 +133,10 @@ class MicrophonePassthrough:
 
     @property
     def active(self):
+        now = time.monotonic()
         return (self.stream is not None and self.stream.active
-                and self._input_stream is not None and self._input_stream.active and not self._failed)
+                and self._input_stream is not None and self._input_stream.active and not self._failed
+                and now - self._capture_progress_at < 3 and now - self._render_progress_at < 3)
 
     def start(self, device_id, volume, *, refresh=False):
         self.stop()
@@ -168,6 +172,7 @@ class MicrophonePassthrough:
                 blocksize=max(1, round(rate * 0.01)), latency=0.06, extra_settings=settings,
                 callback=lambda outdata, frames, timestamp, status:
                     self._render(buffer, outdata, discontinuity=bool(status.output_underflow)))
+            self._capture_progress_at = self._render_progress_at = time.monotonic()
             self._input_stream.start()
             self.stream.start()
             self._thread = threading.Thread(target=self._capture,
@@ -184,6 +189,8 @@ class MicrophonePassthrough:
                 if stopped.is_set(): break
                 mono = effects.process(np.mean(data, axis=1), *self.effect_settings)
                 buffer.append(mono, discontinuity=overflowed)
+                if data.size and self._stopped is stopped:
+                    self._capture_progress_at = time.monotonic()
         except Exception:
             if not stopped.is_set(): self._failed = True
 
@@ -195,6 +202,10 @@ class MicrophonePassthrough:
         gain = min(1.0, max(0.0, gain)) if np.isfinite(gain) else 0.0
         outdata *= gain
         np.clip(outdata, -1.0, 1.0, out=outdata)
+        # Zero-valued frames are valid progress. A callback from an old stream
+        # must not keep a newly started stream's watchdog alive.
+        if outdata.size and self.buffer is buffer:
+            self._render_progress_at = time.monotonic()
 
     def stop(self):
         self._stopped.set()
@@ -212,6 +223,7 @@ class MicrophonePassthrough:
             try: stream.close()
             except sd.PortAudioError: pass
         self._failed = False
+        self._capture_progress_at = self._render_progress_at = 0.0
         self.effects = None
 
 def _play_output(samples, rate, index, volume, cancelled):

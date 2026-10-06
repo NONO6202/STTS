@@ -12,19 +12,37 @@ final class MicrophoneBuffer: @unchecked Sendable {
     private let resync = Atomic<Bool>(false)
     private let underrunCount = Atomic<Int>(0)
     private let overflowCount = Atomic<Int>(0)
+    private let captureFrames = Atomic<Int>(0)
+    private let renderFrames = Atomic<Int>(0)
+    // Watchdog-owned state; audio callbacks only increment atomic counters.
+    private var observedCapture = 0, observedRender = 0
+    private var captureProgressAt: TimeInterval, renderProgressAt: TimeInterval
     // Consumer-owned state.
     private var position = 0, fraction = 0.0
     private var primed = false, gain: Float = 0, last: Float = 0
     private var filteredDepth = Double(target)
 
-    init() { samples.initialize(repeating: 0, count: Self.capacity) }
+    init(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        captureProgressAt = now; renderProgressAt = now
+        samples.initialize(repeating: 0, count: Self.capacity)
+    }
     deinit { samples.deallocate() }
     var underruns: Int { underrunCount.load(ordering: .relaxed) }
     var overflows: Int { overflowCount.load(ordering: .relaxed) }
     var queuedFrames: Int { max(0, written.load(ordering: .acquiring) - consumed.load(ordering: .acquiring)) }
 
+    func processingHealthy(at now: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        let capture = captureFrames.load(ordering: .relaxed), render = renderFrames.load(ordering: .relaxed)
+        if capture != observedCapture { observedCapture = capture; captureProgressAt = now }
+        if render != observedRender { observedRender = render; renderProgressAt = now }
+        // Silence still produces frames. Missing processing, not sample amplitude,
+        // triggers recovery after the same three-second grace on both platforms.
+        return now - captureProgressAt < 3 && now - renderProgressAt < 3
+    }
+
     @discardableResult func append(_ input: UnsafePointer<Float>, count: Int) -> Bool {
         guard count > 0 else { return true }
+        _ = captureFrames.wrappingAdd(count, ordering: .relaxed)
         let head = written.load(ordering: .relaxed)
         guard count <= Self.capacity - (head - consumed.load(ordering: .acquiring)) else {
             _ = overflowCount.wrappingAdd(1, ordering: .relaxed)
@@ -68,5 +86,6 @@ final class MicrophoneBuffer: @unchecked Sendable {
             output[i] = last
         }
         consumed.store(position, ordering: .releasing)
+        if count > 0 { _ = renderFrames.wrappingAdd(count, ordering: .relaxed) }
     }
 }

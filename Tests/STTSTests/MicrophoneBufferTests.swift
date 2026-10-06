@@ -12,6 +12,29 @@ struct MicrophoneBufferTests {
         output.withUnsafeMutableBufferPointer { buffer.render($0.baseAddress!, count: count) }
         return output
     }
+    @Test func startupGraceExpiresWhenProcessingNeverStarts() {
+        let buffer = MicrophoneBuffer(now: 10)
+        #expect(buffer.processingHealthy(at: 12.99))
+        #expect(!buffer.processingHealthy(at: 13))
+    }
+    @Test func silentFramesKeepBothDirectionsHealthy() {
+        let buffer = MicrophoneBuffer(now: 10)
+        for tick in 1...20 {
+            #expect(append([Float](repeating: 0, count: 480), to: buffer))
+            #expect(render(480, from: buffer).allSatisfy { $0 == 0 })
+            #expect(buffer.processingHealthy(at: 10 + Double(tick) / 2))
+        }
+    }
+    @Test(arguments: [true, false]) func stalledDirectionExpiresWhileOtherDirectionKeepsProcessing(captureStalls: Bool) {
+        let buffer = MicrophoneBuffer(now: 10)
+        for tick in 1...8 {
+            if captureStalls { _ = render(480, from: buffer) }
+            else { #expect(append([Float](repeating: 0, count: 480), to: buffer)) }
+            let elapsed = Double(tick) / 2
+            #expect(buffer.processingHealthy(at: 10 + elapsed) == (elapsed < 3))
+        }
+        #expect(MicrophoneBuffer(now: 14).processingHealthy(at: 14))
+    }
     @Test func primesBeforePlaybackAndSanitizesInput() {
         let buffer = MicrophoneBuffer()
         #expect(append([Float](repeating: 0.4, count: 480), to: buffer))

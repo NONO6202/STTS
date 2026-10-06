@@ -12,6 +12,52 @@ import audio
 
 
 class MicrophonePassthroughTests(unittest.TestCase):
+    def test_running_streams_with_stalled_processing_expire_after_startup_grace(self):
+        mic = audio.MicrophonePassthrough()
+        mic.stream = Mock(active=True); mic._input_stream = Mock(active=True)
+        mic._capture_progress_at = mic._render_progress_at = 10
+        with patch.object(audio.time, 'monotonic', return_value=12.99): self.assertTrue(mic.active)
+        with patch.object(audio.time, 'monotonic', return_value=13): self.assertFalse(mic.active)
+        for capture_stalls in (True, False):
+            mic._capture_progress_at = 10 if capture_stalls else 14
+            mic._render_progress_at = 14 if capture_stalls else 10
+            with patch.object(audio.time, 'monotonic', return_value=14): self.assertFalse(mic.active)
+
+    def test_silent_frames_keep_capture_and_render_watchdogs_alive(self):
+        mic = audio.MicrophonePassthrough()
+        mic.stream = Mock(active=True); mic._input_stream = stream = Mock(active=True)
+        mic.effects = audio.MicrophoneEffects()
+        stopped = mic._stopped
+        data = np.zeros((480, 1), dtype='float32')
+        output = np.zeros((480, 2), dtype='float32')
+        for tick in range(1, 21):
+            reads = iter((False, True))
+            def read(frames):
+                if next(reads): stopped.set()
+                return data, False
+            with patch.object(audio.time, 'monotonic', return_value=10 + tick / 2):
+                stopped.clear()
+                stream.read.side_effect = read
+                mic._capture(stream, mic.buffer, mic.effects, stopped, 480)
+                mic._render(mic.buffer, output)
+                self.assertTrue(mic.active)
+                self.assertFalse(output.any())
+
+    def test_callbacks_from_old_stream_do_not_refresh_new_stream_watchdog(self):
+        mic = audio.MicrophonePassthrough(); old_buffer = Mock()
+        mic._capture_progress_at = mic._render_progress_at = 10
+        stopped = threading.Event(); reads = iter((False, True))
+        stream = Mock()
+        def read(frames):
+            if next(reads): stopped.set()
+            return np.zeros((480, 1), dtype='float32'), False
+        stream.read.side_effect = read
+        with patch.object(audio.time, 'monotonic', return_value=20):
+            mic._render(old_buffer, np.zeros((480, 2), dtype='float32'))
+            mic._capture(stream, old_buffer, audio.MicrophoneEffects(), stopped, 480)
+        self.assertEqual(mic._capture_progress_at, 10)
+        self.assertEqual(mic._render_progress_at, 10)
+
     def test_filters_feedback_devices_and_duplicate_host_apis(self):
         def device(name, host=0, inputs=2):
             return dict(name=name, hostapi=host, max_input_channels=inputs)
@@ -162,7 +208,7 @@ class MicrophoneUITests(unittest.TestCase):
         app = self.app
         app.config = {'tts_enabled': True, 'microphone_volume': 0.7, 'microphone_device': 'Mic', 'microphone_enabled': False}
         app.closing = False; app.microphone_active = False; app.microphone_retry_at = 0.0
-        app.tts_busy = app.voice_busy = False; app.capture = None; app.microphone_error = ''
+        app.tts_busy = app.voice_busy = False; app.capture = None; app.microphone_error = ''; app.tts_queue = []; app.skipping = None
         app.live_microphone = Mock(); app.microphone_toggle = Mock(); app.microphone_timer = Mock()
         app.live_microphone.active = False
         app.microphone_box = Mock(); app.microphone_box.currentData.return_value = 'Mic'

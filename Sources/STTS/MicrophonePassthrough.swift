@@ -21,7 +21,12 @@ final class MicrophonePassthrough: NSObject, LiveMicrophoneCapture, AVCaptureAud
     private var failed = false
     private let effects = MicrophoneEffects()
 
-    var healthy: Bool { queue.sync { session?.isRunning == true && device?.isConnected == true && engine?.isRunning == true && !failed } }
+    var healthy: Bool {
+        queue.sync {
+            session?.isRunning == true && device?.isConnected == true && engine?.isRunning == true
+                && !failed && buffer?.processingHealthy() == true
+        }
+    }
     func setVolume(_ value: Double) {
         queue.sync { engine?.mainMixerNode.outputVolume = Float(value.isFinite ? min(1, max(0, value)) : 0) }
     }
