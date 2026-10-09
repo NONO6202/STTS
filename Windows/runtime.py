@@ -139,13 +139,36 @@ def request(command, sid=None, timeout=2):
     finally: kernel.CloseHandle(handle)
 
 
+def outdated(response, build=None):
+    running = response.get('build')
+    return isinstance(running, int) and running != (CONTRACT['build'] if build is None else build)
+
+
+def replace(response, sid=None, timeout=10):
+    """Quit the old runtime and wait for its process, which still owns the pipe and mutex, to exit."""
+    pid = response.get('pid')
+    if not isinstance(pid, int) or pid <= 0: return False
+    kernel = C.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.restype = W.HANDLE
+    handle = kernel.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+    request('quit', sid)
+    if not handle: return request('status', sid) is None
+    try: return kernel.WaitForSingleObject(W.HANDLE(handle), int(timeout * 1000)) == 0
+    finally: kernel.CloseHandle(W.HANDLE(handle))
+
+
 def launch(show=True):
     sid = user_sid()
     try: settings = json.loads((data_directory() / 'settings.json').read_text(encoding='utf-8'))
     except (OSError, ValueError): settings = {}
     name = configure(bool(settings.get('setup_completed') and settings.get('login', DEFAULTS['login'])), sid)
     command = 'show' if show else 'status'
-    if request(command, sid) is not None: return
+    running = request('status', sid)
+    if running is not None:
+        # Steam replaces files under a runtime that keeps running; restart one from another build.
+        # If the old build will not exit, keep using it rather than failing to open.
+        if not outdated(running) or not replace(running, sid):
+            if not show or request('show', sid) is not None: return
     result = system_command('schtasks.exe', ['/Run', '/TN', name])
     if result.returncode: raise RuntimeError(result.stderr.strip() or result.stdout.strip())
     deadline = time.monotonic() + 15

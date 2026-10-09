@@ -12,7 +12,7 @@
     {"id": "POLYGLOT", "stat": "languages", "goal": 3},
     {"id": "NIGHT_OWL", "stat": "night", "goal": 1}
   ],
-  "build": 17,
+  "build": 18,
   "caption": {
     "expiry_seconds": 10,
     "history": 100,

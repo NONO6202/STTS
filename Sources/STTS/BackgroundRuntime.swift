@@ -49,10 +49,35 @@ enum BackgroundRuntime {
         }
         return (process.terminationStatus == 0, detail)
     }
+    /// Steam replaces files under a runtime that keeps running, so a reply from another build is stale.
+    static func outdated(_ response: [String: Any], build: Int?) -> Bool {
+        guard let build, let running = response["build"] as? Int else { return false }
+        return running != build
+    }
+    static func installedBuild(_ executable: URL) -> Int? {
+        let bundle = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        return (Bundle(url: bundle)?.object(forInfoDictionaryKey: "CFBundleVersion") as? String).flatMap(Int.init)
+    }
+    /// Quits the old runtime and waits for its process, which still holds the lock, to exit.
+    static func replace(_ response: [String: Any], directory: URL = directory, timeout: TimeInterval = 10) throws -> Bool {
+        guard let pid = (response["pid"] as? NSNumber)?.int32Value, pid > 0 else { return false }
+        _ = try request("quit", directory: directory)
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if kill(pid, 0) != 0 && errno == ESRCH { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        return false
+    }
     static func launch(executable: URL, show: Bool) throws {
         let login = loginEnabled
         try configure(executable: executable, login: login)
-        if try request(show ? "show" : "status") != nil { return }
+        if let running = try request("status") {
+            // If the old build will not exit, keep using it rather than failing to open.
+            if try !outdated(running, build: installedBuild(executable)) || !replace(running) {
+                if try !show || request("show") != nil { return }
+            }
+        }
         let job = try launchctl(["print", domain + "/" + label], required: false)
         let running = job.output.components(separatedBy: .newlines).contains { line in
             let value = line.trimmingCharacters(in: .whitespaces)

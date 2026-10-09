@@ -39,7 +39,32 @@ class RuntimePolicyTests(unittest.TestCase):
             (Path(folder) / 'settings.json').write_text(json.dumps({'setup_completed': True, 'login': False}))
             runtime.launch()
             configure.assert_called_once_with(False, 'S-1-5-21-123')
-            request.assert_called_once_with('show', 'S-1-5-21-123'); command.assert_not_called()
+            self.assertEqual([call.args for call in request.call_args_list], [('status', 'S-1-5-21-123'), ('show', 'S-1-5-21-123')])
+            command.assert_not_called()
+
+    def test_runtime_from_previous_build_is_replaced_by_the_installed_build(self):
+        build = runtime.CONTRACT['build']
+        self.assertTrue(runtime.outdated({'pid': 7, 'build': build - 1}))
+        self.assertFalse(runtime.outdated({'pid': 7, 'build': build}))
+        self.assertFalse(runtime.outdated({'pid': 7}))
+        replies = iter([{'pid': 7, 'build': build - 1}, {'pid': 8, 'build': build}])
+        with tempfile.TemporaryDirectory() as folder, patch.object(runtime, 'data_directory', return_value=Path(folder)), \
+             patch.object(runtime, 'user_sid', return_value='S-1-5-21-123'), patch.object(runtime, 'configure', return_value='task'), \
+             patch.object(runtime, 'request', side_effect=lambda *args: next(replies)) as request, \
+             patch.object(runtime, 'replace', return_value=True) as replace, \
+             patch.object(runtime, 'system_command', return_value=Mock(returncode=0)) as command:
+            runtime.launch()
+            replace.assert_called_once_with({'pid': 7, 'build': build - 1}, 'S-1-5-21-123')
+            command.assert_called_once_with('schtasks.exe', ['/Run', '/TN', 'task'])
+            self.assertEqual(request.call_args_list[-1].args, ('show', 'S-1-5-21-123'))
+
+    def test_previous_build_that_will_not_quit_is_still_opened(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(runtime, 'data_directory', return_value=Path(folder)), \
+             patch.object(runtime, 'user_sid', return_value='S-1-5-21-123'), patch.object(runtime, 'configure', return_value='task'), \
+             patch.object(runtime, 'request', return_value={'pid': 7, 'build': runtime.CONTRACT['build'] - 1}) as request, \
+             patch.object(runtime, 'replace', return_value=False), patch.object(runtime, 'system_command') as command:
+            runtime.launch()
+            self.assertEqual(request.call_args_list[-1].args, ('show', 'S-1-5-21-123')); command.assert_not_called()
 
     def test_quit_controller_never_launches_or_restarts_a_runtime(self):
         with patch.object(sys, 'argv', ['STTS.exe', '--quit']), patch.object(runtime, 'request', return_value={'pid': 7}) as request, patch.object(runtime, 'launch') as launch:
